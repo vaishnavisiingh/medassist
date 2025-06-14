@@ -1,0 +1,2965 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <map>
+#include <set>
+#include <algorithm>
+#include <cctype>
+#include <fstream>
+#include <sstream>
+#include <ctime>
+#include <iomanip>
+
+using namespace std;
+
+enum class Severity { MILD, MODERATE, SEVERE };
+enum class MedicineType { ALLOPATHY, AYURVEDIC, HOMEOPATHY };
+
+struct Symptom {
+    string name;
+    Severity severity;
+    int durationHours;
+};
+
+struct Medication {
+    string name;
+    string dosage;
+    string frequency;
+    string duration;
+    MedicineType type;
+};
+
+struct Disease {
+    string name;
+    string category;
+    vector<string> primarySymptoms;
+    vector<string> secondarySymptoms;
+    vector<Medication> allopathyTreatments;
+    vector<Medication> ayurvedicTreatments;
+    vector<Medication> homeopathyTreatments;
+    vector<string> precautions;
+    vector<string> homeRemedies;
+    vector<string> riskFactors;
+    vector<string> diagnosticTests;
+    bool contagious;
+};
+
+struct PatientInfo {
+    string name;
+    int age;
+    char gender;
+    vector<string> existingConditions;
+    vector<string> currentMedications;
+    vector<string> allergies;
+    MedicineType preferredMedicine;
+};
+
+map<string, Disease> diseaseDatabase = {
+    {"common_cold", {
+        "Common Cold", "Viral Infection",
+        {"runny nose", "sneezing", "sore throat"},
+        {"cough", "congestion", "mild headache", "mild fever"},
+        {{"Acetaminophen", "500mg", "every 4-6 hours", "as needed", MedicineType::ALLOPATHY},
+         {"Ibuprofen", "200-400mg", "every 6-8 hours", "as needed", MedicineType::ALLOPATHY},
+         {"Decongestants", "as directed", "as directed", "3-5 days", MedicineType::ALLOPATHY}},
+        {{"Tulsi (Holy Basil)", "5-6 leaves", "daily", "until recovery", MedicineType::AYURVEDIC},
+         {"Ginger Tea", "1 cup", "2-3 times daily", "until recovery", MedicineType::AYURVEDIC},
+         {"Turmeric Milk", "1 tsp turmeric in milk", "at bedtime", "until recovery", MedicineType::AYURVEDIC}},
+        {{"Allium Cepa", "30C potency", "3 times daily", "until symptoms improve", MedicineType::HOMEOPATHY},
+         {"Arsenicum Album", "30C potency", "3 times daily", "until symptoms improve", MedicineType::HOMEOPATHY}},
+        {"Rest", "Hydration", "Humidifier use", "Avoid cold foods/drinks"},
+        {"Honey-ginger tea", "Steam inhalation", "Salt water gargle"},
+        {"Close contact", "Weakened immune system"},
+        {"Clinical examination"},
+        true
+    }},
+    
+    {"influenza", {
+        "Influenza (Flu)", "Viral Infection",
+        {"high fever", "body aches", "fatigue"},
+        {"dry cough", "chills", "headache", "sore throat", "nasal congestion"},
+        {{"Oseltamivir", "75mg", "twice daily", "5 days", MedicineType::ALLOPATHY},
+         {"Zanamivir", "10mg", "twice daily", "5 days", MedicineType::ALLOPATHY},
+         {"Acetaminophen", "as needed", "as needed", "as needed", MedicineType::ALLOPATHY}},
+        {{"Giloy (Tinospora cordifolia)", "500mg", "twice daily", "7-10 days", MedicineType::AYURVEDIC},
+         {"Tulsi-Ginger Decoction", "1 cup", "3 times daily", "until recovery", MedicineType::AYURVEDIC}},
+        {{"Gelsemium", "30C potency", "3 times daily", "until fever subsides", MedicineType::HOMEOPATHY},
+         {"Eupatorium Perf", "30C potency", "3 times daily", "until body aches improve", MedicineType::HOMEOPATHY}},
+        {"Annual vaccination", "Hand hygiene", "Avoid sick contacts", "Proper rest"},
+        {"Tulsi-ginger tea", "Turmeric milk", "Steam inhalation"},
+        {"Unvaccinated", "Chronic conditions", "Elderly"},
+        {"Rapid influenza test", "PCR test"},
+        true
+    }},
+
+    {"asthma", {
+        "Asthma", "Chronic Respiratory",
+        {"wheezing", "shortness of breath", "chest tightness"},
+        {"cough (especially at night)", "difficulty breathing"},
+        {{"Albuterol", "1-2 puffs", "every 4-6 hours", "as needed", MedicineType::ALLOPATHY},
+         {"Fluticasone", "as prescribed", "daily", "long-term", MedicineType::ALLOPATHY}},
+        {{"Vasaka (Adhatoda vasica)", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+         {"Sitopaladi Churna", "1 tsp", "with honey twice daily", "long-term", MedicineType::AYURVEDIC}},
+        {{"Arsenicum Album", "30C potency", "3 times daily", "during attacks", MedicineType::HOMEOPATHY},
+         {"Natrum Sulph", "6X potency", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+        {"Avoid triggers", "Monitor peak flow", "Action plan", "Keep inhaler handy"},
+        {"Coffee (can help mild attacks)", "Mustard oil massage on chest", "Figs soaked overnight"},
+        {"Allergies", "Family history", "Smoking", "Air pollution"},
+        {"Spirometry", "Peak flow monitoring"},
+        false
+    }},
+
+    {"hypertension", {
+        "Hypertension", "Cardiovascular",
+        {"often asymptomatic"},
+        {"headache", "dizziness", "blurred vision", "shortness of breath"},
+        {{"Lisinopril", "as prescribed", "daily", "long-term", MedicineType::ALLOPATHY},
+         {"Amlodipine", "as prescribed", "daily", "long-term", MedicineType::ALLOPATHY}},
+        {{"Arjuna (Terminalia arjuna)", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+         {"Sarpagandha (Rauwolfia)", "as prescribed", "daily", "long-term", MedicineType::AYURVEDIC}},
+        {{"Crataegus", "Q potency", "10 drops in water", "twice daily", MedicineType::HOMEOPATHY},
+         {"Baryta Mur", "6X potency", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+        {"Low-salt diet", "Regular exercise", "Stress management", "Limit alcohol"},
+        {"Garlic (2-3 cloves daily)", "Hibiscus tea", "Beetroot juice"},
+        {"Family history", "Obesity", "High salt intake", "Sedentary lifestyle"},
+        {"Blood pressure measurement"},
+        false
+    }},
+
+    {"gastroenteritis", {
+        "Gastroenteritis", "Gastrointestinal",
+        {"nausea", "vomiting", "diarrhea"},
+        {"abdominal cramps", "low-grade fever", "dehydration"},
+        {{"Oral rehydration salts", "as directed", "frequently", "until recovery", MedicineType::ALLOPATHY},
+         {"Loperamide", "4mg initially", "as needed", "1-2 days", MedicineType::ALLOPATHY}},
+        {{"Kutaja (Holarrhena antidysenterica)", "500mg", "twice daily", "until recovery", MedicineType::AYURVEDIC},
+         {"Bilva (Aegle marmelos)", "as directed", "twice daily", "until recovery", MedicineType::AYURVEDIC}},
+        {{"Podophyllum", "30C potency", "every 2 hours", "until diarrhea improves", MedicineType::HOMEOPATHY},
+         {"Arsenicum Album", "30C potency", "every 2 hours", "until vomiting stops", MedicineType::HOMEOPATHY}},
+        {"Hand hygiene", "Proper food handling", "Clean water", "Avoid dairy during illness"},
+        {"Rice water", "Banana (for potassium)", "Ginger tea (for nausea)"},
+        {"Contaminated food", "Weakened immune system", "Traveler's diarrhea"},
+        {"Stool test (if severe)"},
+        true
+    }},
+
+    {"migraine", {
+        "Migraine", "Neurological",
+        {"moderate to severe headache", "throbbing pain"},
+        {"nausea", "vomiting", "sensitivity to light/sound"},
+        {{"Sumatriptan", "50-100mg", "at onset", "as needed", MedicineType::ALLOPATHY},
+         {"Ibuprofen", "400-600mg", "at onset", "as needed", MedicineType::ALLOPATHY}},
+        {{"Brahmi (Bacopa monnieri)", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+         {"Shankhpushpi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+        {{"Belladonna", "30C potency", "every 30 minutes", "during attack", MedicineType::HOMEOPATHY},
+         {"Natrum Mur", "200C potency", "weekly", "long-term prevention", MedicineType::HOMEOPATHY}},
+        {"Identify triggers", "Regular sleep", "Stress management", "Avoid skipped meals"},
+        {"Peppermint oil on temples", "Ginger tea", "Cold compress on forehead"},
+        {"Family history", "Hormonal changes", "Stress"},
+        {"Clinical diagnosis"},
+        false
+    }},
+
+    {"allergic_rhinitis", {
+        "Allergic Rhinitis", "Allergy",
+        {"sneezing", "itchy nose", "runny nose"},
+        {"itchy eyes", "congestion", "postnasal drip"},
+        {{"Cetirizine", "10mg", "daily", "as needed", MedicineType::ALLOPATHY},
+         {"Fluticasone nasal spray", "1-2 sprays", "daily", "seasonal", MedicineType::ALLOPATHY}},
+        {{"Anu Taila", "2 drops", "in each nostril", "daily", MedicineType::AYURVEDIC},
+         {"Haridra (Turmeric)", "500mg", "twice daily", "seasonal", MedicineType::AYURVEDIC}},
+        {{"Allium Cepa", "30C potency", "3 times daily", "as needed", MedicineType::HOMEOPATHY},
+         {"Sabadilla", "30C potency", "3 times daily", "as needed", MedicineType::HOMEOPATHY}},
+        {"Allergen avoidance", "Air filters", "Keep windows closed", "Wash face after exposure"},
+        {"Nasal irrigation with saline", "Local honey (for pollen allergies)", "Steam inhalation"},
+        {"Family history", "Other allergies", "Asthma"},
+        {"Allergy testing"},
+        false
+    }},
+
+    {"covid_19", {
+        "COVID-19", "Viral Infection",
+        {"fever", "dry cough", "fatigue"},
+        {"loss of taste/smell", "sore throat", "headache", "difficulty breathing"},
+        {{"Paracetamol", "650mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY},
+         {"Remdesivir", "200mg", "daily", "5 days (severe cases)", MedicineType::ALLOPATHY},
+         {"Dexamethasone", "6mg", "daily", "if oxygen required", MedicineType::ALLOPATHY}},
+        {{"Ayush Kwath", "30ml", "twice daily", "14 days", MedicineType::AYURVEDIC},
+         {"Giloy", "500mg", "twice daily", "until recovery", MedicineType::AYURVEDIC}},
+        {{"Arsenicum Album 30C", "3 pellets", "daily", "7 days", MedicineType::HOMEOPATHY},
+         {"Bryonia 30C", "as needed", "for dry cough", "as needed", MedicineType::HOMEOPATHY}},
+        {"Vaccination", "N95 masking", "Social distancing", "Hand hygiene"},
+        {"Warm fluids", "Steam inhalation", "Proning for oxygen levels"},
+        {"Unvaccinated", "Chronic conditions", "Elderly"},
+        {"RT-PCR test", "Rapid antigen test"},
+        true
+    }},
+
+    {"tuberculosis", {
+        "Tuberculosis", "Bacterial Infection",
+        {"persistent cough (3+ weeks)", "fever", "night sweats"},
+        {"weight loss", "fatigue", "blood in sputum"},
+        {{"Rifampin", "10mg/kg", "daily", "6 months", MedicineType::ALLOPATHY},
+         {"Isoniazid", "5mg/kg", "daily", "6 months", MedicineType::ALLOPATHY}},
+        {{"Vasa (Adhatoda vasica)", "500mg", "twice daily", "6 months", MedicineType::AYURVEDIC},
+         {"Chyawanprash", "1 tsp", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+        {{"Tuberculinum", "200C", "monthly", "as adjuvant", MedicineType::HOMEOPATHY},
+         {"Phosphorus", "30C", "daily", "as needed", MedicineType::HOMEOPATHY}},
+        {"Complete medication course", "Infection control", "Proper ventilation", "Mask wearing"},
+        {"High-protein diet", "Sun exposure (for Vitamin D)", "Garlic in diet"},
+        {"HIV infection", "Malnutrition", "Diabetes", "Close contact with TB patient"},
+        {"Sputum test", "Chest X-ray", "Tuberculin skin test"},
+        true
+    }},
+
+    {"diabetes", {
+        "Diabetes Mellitus", "Metabolic Disorder",
+        {"increased thirst", "frequent urination", "hunger"},
+        {"fatigue", "blurred vision", "slow healing"},
+        {{"Metformin", "500mg", "twice daily", "long-term", MedicineType::ALLOPATHY},
+         {"Insulin", "as prescribed", "as directed", "long-term", MedicineType::ALLOPATHY}},
+        {{"Madhumehari", "1 tsp", "twice daily", "long-term", MedicineType::AYURVEDIC},
+         {"Vijayasar", "as directed", "daily", "long-term", MedicineType::AYURVEDIC}},
+        {{"Syzygium Jambolanum", "Q potency", "10 drops", "twice daily", MedicineType::HOMEOPATHY},
+         {"Phosphoric Acid", "30C", "twice weekly", "long-term", MedicineType::HOMEOPATHY}},
+        {"Regular blood sugar monitoring", "Foot care", "Regular meals", "Exercise"},
+        {"Bitter gourd juice", "Fenugreek seeds", "Amla (Indian gooseberry)"},
+        {"Family history", "Obesity", "Sedentary lifestyle", "High blood pressure"},
+        {"Fasting blood sugar", "HbA1c", "Oral glucose tolerance test"},
+        false
+    }},
+
+    {"depression", {
+        "Depression", "Mental Health",
+        {"persistent sadness", "loss of interest", "fatigue"},
+        {"sleep disturbances", "appetite changes", "concentration issues"},
+        {{"Sertraline", "50mg", "daily", "6+ months", MedicineType::ALLOPATHY},
+         {"Escitalopram", "10mg", "daily", "6+ months", MedicineType::ALLOPATHY}},
+        {{"Brahmi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+         {"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+        {{"Aurum Met", "200C", "weekly", "as needed", MedicineType::HOMEOPATHY},
+         {"Natrum Mur", "200C", "weekly", "as needed", MedicineType::HOMEOPATHY}},
+        {"Regular routine", "Social connection", "Therapy", "Gradual activity increase"},
+        {"Meditation", "Yoga", "Omega-3 rich foods"},
+        {"Family history", "Trauma", "Chronic illness", "Substance abuse"},
+        {"Clinical evaluation", "PHQ-9 questionnaire"},
+        false
+    }},
+
+    {"arthritis", {
+        "Osteoarthritis", "Musculoskeletal",
+        {"joint pain", "stiffness", "reduced mobility"},
+        {"swelling", "crepitus", "worsening with activity"},
+        {{"Acetaminophen", "500mg", "as needed", "as needed", MedicineType::ALLOPATHY},
+         {"Ibuprofen", "400mg", "as needed", "as needed", MedicineType::ALLOPATHY}},
+        {{"Shallaki (Boswellia)", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+         {"Guggulu", "as directed", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+        {{"Rhus Tox", "6C", "3 times daily", "as needed", MedicineType::HOMEOPATHY},
+         {"Bryonia", "30C", "as needed", "for acute pain", MedicineType::HOMEOPATHY}},
+        {"Weight management", "Low-impact exercise", "Joint protection", "Heat/cold therapy"},
+        {"Turmeric milk", "Castor oil massage", "Epsom salt baths"},
+        {"Age", "Obesity", "Joint injury", "Genetics"},
+        {"X-rays", "Joint fluid analysis"},
+        false
+    }},
+
+    {"pneumonia", {
+        "Pneumonia", "Respiratory Infection",
+        {"cough with phlegm", "fever", "difficulty breathing"},
+        {"chest pain", "fatigue", "confusion (in elderly)"},
+        {{"Amoxicillin", "500mg", "three times daily", "7-10 days", MedicineType::ALLOPATHY},
+         {"Azithromycin", "500mg", "daily", "5 days", MedicineType::ALLOPATHY}},
+        {{"Vasa (Adhatoda vasica)", "500mg", "twice daily", "until recovery", MedicineType::AYURVEDIC},
+         {"Sitopaladi Churna", "1 tsp", "with honey", "until recovery", MedicineType::AYURVEDIC}},
+        {{"Antimonium Tart", "6C", "every 2 hours", "for phlegm", MedicineType::HOMEOPATHY},
+         {"Phosphorus", "30C", "three times daily", "as needed", MedicineType::HOMEOPATHY}},
+        {"Vaccination (pneumococcal)", "Hand hygiene", "Smoking cessation", "Adequate rest"},
+        {"Turmeric milk", "Garlic", "Steam inhalation"},
+        {"Age extremes", "Smoking", "Chronic lung disease", "Weakened immunity"},
+        {"Chest X-ray", "Sputum culture", "Blood tests"},
+        true
+    }},
+
+    {"hepatitis_b", {
+        "Hepatitis B", "Viral Infection",
+        {"fatigue", "abdominal pain", "jaundice"},
+        {"nausea", "loss of appetite", "dark urine"},
+        {{"Tenofovir", "300mg", "daily", "long-term", MedicineType::ALLOPATHY},
+         {"Entecavir", "0.5mg", "daily", "long-term", MedicineType::ALLOPATHY}},
+        {{"Bhumi Amla", "500mg", "twice daily", "3-6 months", MedicineType::AYURVEDIC},
+         {"Kutki", "500mg", "twice daily", "3-6 months", MedicineType::AYURVEDIC}},
+        {{"Chelidonium", "30C", "three times daily", "as needed", MedicineType::HOMEOPATHY},
+         {"Carduus Marianus", "Q potency", "10 drops", "three times daily", MedicineType::HOMEOPATHY}},
+        {"Vaccination", "Avoid alcohol", "Safe sex practices", "No sharing needles"},
+        {"Papaya leaf juice", "Milk thistle", "Adequate hydration"},
+        {"Unprotected sex", "Needle sharing", "Healthcare workers", "Born to infected mother"},
+        {"HBsAg test", "Liver function tests"},
+        true
+    }},
+
+    {"hyperthyroidism", {
+        "Hyperthyroidism", "Endocrine Disorder",
+        {"weight loss", "rapid heartbeat", "nervousness"},
+        {"sweating", "tremors", "heat intolerance"},
+        {{"Methimazole", "5-30mg", "daily", "12-18 months", MedicineType::ALLOPATHY},
+         {"Propranolol", "10-40mg", "as needed", "symptomatic relief", MedicineType::ALLOPATHY}},
+        {{"Jatamansi", "500mg", "twice daily", "3-6 months", MedicineType::AYURVEDIC},
+         {"Brahmi", "500mg", "twice daily", "3-6 months", MedicineType::AYURVEDIC}},
+        {{"Iodum", "30C", "twice daily", "as needed", MedicineType::HOMEOPATHY},
+         {"Natrum Mur", "200C", "weekly", "as needed", MedicineType::HOMEOPATHY}},
+        {"Regular monitoring", "Stress management", "Eye protection (for Graves)", "Calcium-rich diet"},
+        {"Bugleweed tea", "Lemon balm", "Avoid iodine-rich foods"},
+        {"Family history", "Female gender", "Autoimmune conditions"},
+        {"TSH test", "Free T4", "Thyroid scan"},
+        false
+    }},
+
+{"dengue", {
+    "Dengue Fever", "Viral Infection",
+    {"high fever", "severe headache", "pain behind eyes"},
+    {"muscle and joint pain", "rash", "mild bleeding", "low platelets"},
+    {{"Acetaminophen", "500mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY},
+     {"IV Fluids", "as needed", "as needed", "until recovery", MedicineType::ALLOPATHY}},
+    {{"Papaya Leaf Extract", "30ml", "twice daily", "until platelets normalize", MedicineType::AYURVEDIC},
+     {"Giloy Juice", "10-20ml", "twice daily", "7-10 days", MedicineType::AYURVEDIC}},
+    {{"Eupatorium Perf", "30C", "every 2 hours", "during fever", MedicineType::HOMEOPATHY},
+     {"China Officinalis", "30C", "three times daily", "for weakness", MedicineType::HOMEOPATHY}},
+    {"Mosquito control", "Hydration", "Rest", "Monitor platelet count"},
+    {"Papaya leaf juice", "Coconut water", "Herbal teas"},
+    {"Mosquito exposure", "Tropical regions", "Weakened immunity"},
+    {"NS1 antigen test", "Dengue IgM test", "Complete blood count"},
+    false
+}},
+
+{"malaria", {
+    "Malaria", "Parasitic Infection",
+    {"high fever", "chills", "sweating"},
+    {"headache", "nausea", "vomiting", "fatigue"},
+    {{"Chloroquine", "600mg base", "initial dose", "followed by 300mg after 6-8 hours", MedicineType::ALLOPATHY},
+     {"Artemether-Lumefantrine", "as prescribed", "twice daily", "3 days", MedicineType::ALLOPATHY}},
+    {{"Sudarshan Ghan Vati", "500mg", "twice daily", "7 days", MedicineType::AYURVEDIC},
+     {"Tulsi Neem Decoction", "30ml", "twice daily", "7 days", MedicineType::AYURVEDIC}},
+    {{"China Officinalis", "30C", "three times daily", "during fever", MedicineType::HOMEOPATHY},
+     {"Natrum Mur", "30C", "three times daily", "for weakness", MedicineType::HOMEOPATHY}},
+    {"Mosquito nets", "Insect repellent", "Prophylaxis in endemic areas"},
+    {"Grapefruit juice", "Cinnamon tea", "Ginger"},
+    {"Travel to endemic areas", "Mosquito exposure", "No prophylaxis"},
+    {"Malaria blood smear", "Rapid diagnostic test"},
+    false
+}},
+
+{"chikungunya", {
+    "Chikungunya", "Viral Infection",
+    {"high fever", "severe joint pain", "rash"},
+    {"headache", "muscle pain", "joint swelling", "fatigue"},
+    {{"Acetaminophen", "500mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY},
+     {"NSAIDs", "as prescribed", "as needed", "for pain", MedicineType::ALLOPATHY}},
+    {{"Nirgundi (Vitex negundo)", "500mg", "twice daily", "until symptoms resolve", MedicineType::AYURVEDIC},
+     {"Shallaki (Boswellia)", "500mg", "twice daily", "for joint pain", MedicineType::AYURVEDIC}},
+    {{"Eupatorium Perf", "30C", "three times daily", "during fever", MedicineType::HOMEOPATHY},
+     {"Rhus Tox", "6C", "three times daily", "for joint pain", MedicineType::HOMEOPATHY}},
+    {"Mosquito control", "Rest", "Joint protection"},
+    {"Turmeric milk", "Cherries (for joint pain)", "Epsom salt baths"},
+    {"Mosquito exposure", "Tropical regions"},
+    {"Chikungunya IgM test", "PCR test"},
+    false
+}},
+
+{"typhoid", {
+    "Typhoid Fever", "Bacterial Infection",
+    {"sustained high fever", "headache", "abdominal pain"},
+    {"weakness", "constipation/diarrhea", "rose spots", "enlarged spleen"},
+    {{"Ciprofloxacin", "500mg", "twice daily", "10 days", MedicineType::ALLOPATHY},
+     {"Azithromycin", "500mg", "daily", "7 days", MedicineType::ALLOPATHY}},
+    {{"Kutaja (Holarrhena antidysenterica)", "500mg", "twice daily", "10 days", MedicineType::AYURVEDIC},
+     {"Bilva (Aegle marmelos)", "as directed", "twice daily", "10 days", MedicineType::AYURVEDIC}},
+    {{"Baptisia", "30C", "three times daily", "during fever", MedicineType::HOMEOPATHY},
+     {"Arsenicum Album", "30C", "three times daily", "for weakness", MedicineType::HOMEOPATHY}},
+    {"Safe food/water", "Hand hygiene", "Vaccination for travelers"},
+    {"ORS solution", "Banana diet", "Coconut water"},
+    {"Contaminated food/water", "Poor sanitation", "Travel to endemic areas"},
+    {"Widal test", "Blood culture", "Typhidot test"},
+    true
+}},
+
+{"urinary_tract_infection", {
+    "Urinary Tract Infection", "Bacterial Infection",
+    {"painful urination", "frequent urination", "urinary urgency"},
+    {"lower abdominal pain", "cloudy urine", "blood in urine", "fever"},
+    {{"Nitrofurantoin", "100mg", "twice daily", "5 days", MedicineType::ALLOPATHY},
+     {"Ciprofloxacin", "250mg", "twice daily", "3 days", MedicineType::ALLOPATHY}},
+    {{"Gokshura (Tribulus terrestris)", "500mg", "twice daily", "7 days", MedicineType::AYURVEDIC},
+     {"Chandraprabha Vati", "1 tablet", "twice daily", "10 days", MedicineType::AYURVEDIC}},
+    {{"Cantharis", "30C", "every 2 hours", "during acute phase", MedicineType::HOMEOPATHY},
+     {"Berberis Vulgaris", "30C", "three times daily", "for pain", MedicineType::HOMEOPATHY}},
+    {"Adequate hydration", "Urinate after intercourse", "Wipe front to back"},
+    {"Cranberry juice", "Barley water", "Coconut water"},
+    {"Female anatomy", "Sexual activity", "Dehydration", "Catheter use"},
+    {"Urine routine/microscopy", "Urine culture"},
+    false
+}},
+
+{"sinusitis", {
+    "Sinusitis", "Respiratory Infection",
+    {"facial pain/pressure", "nasal congestion", "thick nasal discharge"},
+    {"reduced smell", "cough", "headache", "fever", "bad breath"},
+    {{"Amoxicillin-Clavulanate", "500mg", "twice daily", "10-14 days", MedicineType::ALLOPATHY},
+     {"Nasal corticosteroids", "as directed", "daily", "as needed", MedicineType::ALLOPATHY}},
+    {{"Anu Taila Nasya", "2 drops", "in each nostril", "daily", MedicineType::AYURVEDIC},
+     {"Sitopaladi Churna", "1 tsp", "with honey", "twice daily", MedicineType::AYURVEDIC}},
+    {{"Kali Bichromicum", "30C", "three times daily", "for thick discharge", MedicineType::HOMEOPATHY},
+     {"Pulsatilla", "30C", "three times daily", "for yellow discharge", MedicineType::HOMEOPATHY}},
+    {"Steam inhalation", "Hydration", "Humidifier use"},
+    {"Saline nasal irrigation", "Ginger tea", "Turmeric milk"},
+    {"Allergies", "Nasal polyps", "Deviated septum", "Recent cold"},
+    {"Clinical examination", "CT scan (if chronic)"},
+    false
+}},
+
+{"peptic_ulcer", {
+    "Peptic Ulcer", "Gastrointestinal",
+    {"burning stomach pain", "bloating", "heartburn"},
+    {"nausea", "vomiting", "loss of appetite", "weight loss"},
+    {{"Omeprazole", "20mg", "daily", "4-8 weeks", MedicineType::ALLOPATHY},
+     {"Amoxicillin+Clarithromycin", "as prescribed", "twice daily", "14 days (for H. pylori)", MedicineType::ALLOPATHY}},
+    {{"Yashtimadhu (Licorice)", "500mg", "twice daily", "4-8 weeks", MedicineType::AYURVEDIC},
+     {"Amla (Emblica officinalis)", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Nux Vomica", "30C", "three times daily", "for acid reflux", MedicineType::HOMEOPATHY},
+     {"Robinia", "30C", "as needed", "for heartburn", MedicineType::HOMEOPATHY}},
+    {"Avoid NSAIDs", "Limit alcohol", "Small frequent meals", "Stress management"},
+    {"Banana", "Cabbage juice", "Aloe vera juice", "Honey"},
+    {"H. pylori infection", "NSAID use", "Smoking", "Stress"},
+    {"Endoscopy", "H. pylori testing"},
+    false
+}},
+
+{"eczema", {
+    "Eczema (Atopic Dermatitis)", "Dermatological",
+    {"itchy skin", "redness", "dry skin"},
+    {"scaly patches", "cracks", "oozing", "thickened skin"},
+    {{"Hydrocortisone cream", "1%", "twice daily", "short-term", MedicineType::ALLOPATHY},
+     {"Antihistamines", "as directed", "as needed", "for itching", MedicineType::ALLOPATHY}},
+    {{"Neem", "as paste or oil", "topically", "daily", MedicineType::AYURVEDIC},
+     {"Manjistha (Rubia cordifolia)", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Sulphur", "30C", "twice daily", "for itching", MedicineType::HOMEOPATHY},
+     {"Graphites", "30C", "twice daily", "for cracked skin", MedicineType::HOMEOPATHY}},
+    {"Moisturize regularly", "Avoid triggers", "Cotton clothing", "Short lukewarm baths"},
+    {"Coconut oil", "Oatmeal baths", "Aloe vera gel"},
+    {"Family history", "Allergies", "Asthma", "Dry climate"},
+    {"Clinical examination", "Patch testing (for allergies)"},
+    false
+}},
+
+{"psoriasis", {
+    "Psoriasis", "Autoimmune Dermatological",
+    {"red patches with silvery scales", "dry cracked skin", "itching"},
+    {"burning/soreness", "thickened nails", "joint pain"},
+    {{"Topical corticosteroids", "as directed", "daily", "as needed", MedicineType::ALLOPATHY},
+     {"Methotrexate", "as prescribed", "weekly", "long-term (severe cases)", MedicineType::ALLOPATHY}},
+    {{"Mahamanjisthadi Kwath", "20ml", "twice daily", "long-term", MedicineType::AYURVEDIC},
+     {"Neem", "as paste or oil", "topically", "daily", MedicineType::AYURVEDIC}},
+    {{"Arsenicum Album", "30C", "twice daily", "for scaling", MedicineType::HOMEOPATHY},
+     {"Graphites", "30C", "twice daily", "for cracked skin", MedicineType::HOMEOPATHY}},
+    {"Moisturize", "Sunlight exposure", "Stress management", "Avoid triggers"},
+    {"Turmeric paste", "Aloe vera", "Fish oil supplements"},
+    {"Family history", "Stress", "Obesity", "Smoking"},
+    {"Clinical examination", "Skin biopsy"},
+    false
+}},
+
+{"conjunctivitis", {
+    "Conjunctivitis", "Ophthalmological",
+    {"red eyes", "itchy eyes", "watery discharge"},
+    {"gritty feeling", "swollen eyelids", "light sensitivity", "crusting"},
+    {{"Antibiotic eye drops", "as directed", "4 times daily", "5-7 days (bacterial)", MedicineType::ALLOPATHY},
+     {"Antihistamine eye drops", "as directed", "as needed", "for allergies", MedicineType::ALLOPATHY}},
+    {{"Triphala eyewash", "as directed", "twice daily", "until resolved", MedicineType::AYURVEDIC},
+     {"Rose water", "2 drops", "as needed", "for soothing", MedicineType::AYURVEDIC}},
+    {{"Euphrasia", "6C", "three times daily", "for watery eyes", MedicineType::HOMEOPATHY},
+     {"Pulsatilla", "6C", "three times daily", "for thick discharge", MedicineType::HOMEOPATHY}},
+    {"Hand hygiene", "Avoid rubbing eyes", "Don't share towels", "Replace eye makeup"},
+    {"Cold compresses", "Cucumber slices", "Honey eye drops (diluted)"},
+    {"Viral/bacterial exposure", "Allergies", "Contact lens misuse"},
+    {"Clinical examination", "Swab culture (if severe)"},
+    true
+}},
+
+{"gout", {
+    "Gout", "Metabolic",
+    {"sudden severe joint pain", "redness", "swelling (often big toe)"},
+    {"warmth in joint", "limited mobility", "tenderness"},
+    {{"Colchicine", "0.6mg", "every hour", "until relief or diarrhea", MedicineType::ALLOPATHY},
+     {"Allopurinol", "100-300mg", "daily", "long-term prevention", MedicineType::ALLOPATHY}},
+    {{"Guggulu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+     {"Punarnava (Boerhavia diffusa)", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Benzoic Acid", "30C", "three times daily", "during attack", MedicineType::HOMEOPATHY},
+     {"Colchicum", "30C", "three times daily", "for pain", MedicineType::HOMEOPATHY}},
+    {"Low-purine diet", "Hydration", "Limit alcohol", "Weight management"},
+    {"Cherry juice", "Apple cider vinegar", "Ginger tea"},
+    {"High purine diet", "Alcohol use", "Obesity", "Family history"},
+    {"Joint fluid analysis", "Uric acid blood test"},
+    false
+}},
+
+{"osteoporosis", {
+    "Osteoporosis", "Musculoskeletal",
+    {"often asymptomatic until fracture"},
+    {"back pain", "loss of height", "stooped posture", "fragility fractures"},
+    {{"Alendronate", "70mg", "weekly", "long-term", MedicineType::ALLOPATHY},
+     {"Calcium + Vitamin D", "as directed", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Laksha (Laccifer lacca)", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+     {"Asthisandhanak Kashayam", "20ml", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Calcarea Phos", "6X", "three times daily", "long-term", MedicineType::HOMEOPATHY},
+     {"Symphytum", "30C", "three times daily", "for fractures", MedicineType::HOMEOPATHY}},
+    {"Weight-bearing exercise", "Adequate calcium/vitamin D", "Fall prevention"},
+    {"Sesame seeds", "Dairy products", "Leafy greens"},
+    {"Postmenopausal", "Low calcium intake", "Sedentary lifestyle", "Steroid use"},
+    {"DEXA scan", "Bone density test"},
+    false
+}},
+
+{"irritable_bowel_syndrome", {
+    "Irritable Bowel Syndrome", "Gastrointestinal",
+    {"abdominal pain", "bloating", "changes in bowel habits"},
+    {"diarrhea", "constipation", "mucus in stool", "gas"},
+    {{"Hyoscine", "10mg", "as needed", "for cramps", MedicineType::ALLOPATHY},
+     {"Loperamide", "as needed", "for diarrhea", "short-term", MedicineType::ALLOPATHY}},
+    {{"Hingvastak Churna", "1 tsp", "with warm water", "twice daily", MedicineType::AYURVEDIC},
+     {"Bilva (Aegle marmelos)", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Nux Vomica", "30C", "three times daily", "for constipation", MedicineType::HOMEOPATHY},
+     {"Podophyllum", "30C", "three times daily", "for diarrhea", MedicineType::HOMEOPATHY}},
+    {"Fiber management", "Stress reduction", "Regular meals", "Food diary"},
+    {"Peppermint tea", "Ginger", "Probiotics", "Fennel seeds"},
+    {"Stress", "Food intolerances", "Female gender"},
+    {"Clinical diagnosis", "Rule out other conditions"},
+    false
+}},
+
+{"chickenpox", {
+    "Chickenpox", "Viral Infection",
+    {"itchy rash", "fever", "fatigue"},
+    {"headache", "loss of appetite", "fluid-filled blisters"},
+    {{"Acetaminophen", "500mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY},
+     {"Acyclovir", "800mg", "4 times daily", "5 days", MedicineType::ALLOPATHY}},
+    {{"Neem leaves", "as paste", "topically", "until healed", MedicineType::AYURVEDIC},
+     {"Guduchi", "500mg", "twice daily", "7 days", MedicineType::AYURVEDIC}},
+    {{"Rhus Tox", "30C", "3 times daily", "until rash fades", MedicineType::HOMEOPATHY},
+     {"Antimonium Tart", "30C", "3 times daily", "for blisters", MedicineType::HOMEOPATHY}},
+    {"Isolation", "Oatmeal baths", "Keep nails short"},
+    {"Baking soda baths", "Honey application", "Coconut oil"},
+    {"Unvaccinated", "Weakened immunity"},
+    {"Clinical examination"},
+    true
+}},
+
+{"measles", {
+    "Measles", "Viral Infection",
+    {"high fever", "cough", "runny nose", "red eyes"},
+    {"Koplik's spots", "rash (head to toe)", "sensitivity to light"},
+    {{"Vitamin A", "200,000 IU", "single dose", "once", MedicineType::ALLOPATHY},
+     {"Acetaminophen", "as needed", "for fever", "as needed", MedicineType::ALLOPATHY}},
+    {{"Tulsi", "10 leaves", "daily", "7 days", MedicineType::AYURVEDIC},
+     {"Turmeric milk", "1 tsp", "daily", "7 days", MedicineType::AYURVEDIC}},
+    {{"Morbillinum", "200C", "single dose", "once", MedicineType::HOMEOPATHY},
+     {"Pulsatilla", "30C", "3 times daily", "7 days", MedicineType::HOMEOPATHY}},
+    {"Vaccination", "Isolation", "Rest"},
+    {"Barley water", "Coconut water", "Neem leaves"},
+    {"Unvaccinated", "Malnutrition"},
+    {"Clinical exam", "IgM test"},
+    true
+}},
+
+{"mumps", {
+    "Mumps", "Viral Infection",
+    {"swollen salivary glands", "fever", "headache"},
+    {"muscle aches", "fatigue", "loss of appetite"},
+    {{"Acetaminophen", "500mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY},
+     {"Ibuprofen", "400mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "7 days", MedicineType::AYURVEDIC},
+     {"Yashtimadhu", "500mg", "twice daily", "7 days", MedicineType::AYURVEDIC}},
+    {{"Pilocarpus", "30C", "3 times daily", "7 days", MedicineType::HOMEOPATHY},
+     {"Mercurius Sol", "30C", "3 times daily", "7 days", MedicineType::HOMEOPATHY}},
+    {"Vaccination", "Isolation", "Warm compresses"},
+    {"Pineapple juice", "Ginger compresses", "Turmeric milk"},
+    {"Unvaccinated", "Close contact"},
+    {"Clinical exam", "IgM test"},
+    true
+}},
+
+{"rubella", {
+    "Rubella", "Viral Infection",
+    {"mild fever", "rash (face to body)", "swollen lymph nodes"},
+    {"headache", "pink eye", "joint pain"},
+    {{"Acetaminophen", "500mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY}},
+    {{"Neem", "500mg", "twice daily", "7 days", MedicineType::AYURVEDIC},
+     {"Manjistha", "500mg", "twice daily", "7 days", MedicineType::AYURVEDIC}},
+    {{"Pulsatilla", "30C", "3 times daily", "7 days", MedicineType::HOMEOPATHY},
+     {"Euphrasia", "30C", "3 times daily", "7 days", MedicineType::HOMEOPATHY}},
+    {"Vaccination", "Isolation (especially from pregnant women)"},
+    {"Aloe vera gel", "Coconut water", "Turmeric"},
+    {"Unvaccinated", "Pregnancy"},
+    {"Clinical exam", "IgM test"},
+    true
+}},
+
+{"hepatitis_a", {
+    "Hepatitis A", "Viral Infection",
+    {"fatigue", "nausea", "abdominal pain"},
+    {"jaundice", "dark urine", "clay-colored stools"},
+    {{"Supportive care", "as needed", "as needed", "until recovery", MedicineType::ALLOPATHY}},
+    {{"Bhumi Amla", "500mg", "twice daily", "4 weeks", MedicineType::AYURVEDIC},
+     {"Kutki", "500mg", "twice daily", "4 weeks", MedicineType::AYURVEDIC}},
+    {{"Chelidonium", "30C", "3 times daily", "4 weeks", MedicineType::HOMEOPATHY},
+     {"Carduus Marianus", "30C", "3 times daily", "4 weeks", MedicineType::HOMEOPATHY}},
+    {"Vaccination", "Hand hygiene", "Avoid alcohol"},
+    {"Papaya leaf juice", "Barley water", "Sugar cane juice"},
+    {"Contaminated food/water", "Poor sanitation"},
+    {"IgM anti-HAV", "Liver function tests"},
+    true
+}},
+
+{"hepatitis_c", {
+    "Hepatitis C", "Viral Infection",
+    {"often asymptomatic"},
+    {"fatigue", "jaundice", "abdominal pain"},
+    {{"Sofosbuvir/Velpatasvir", "400/100mg", "daily", "12 weeks", MedicineType::ALLOPATHY}},
+    {{"Phyllanthus niruri", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Chelidonium", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Safe injection practices", "No alcohol", "Regular monitoring"},
+    {"Milk thistle", "Dandelion tea", "Turmeric"},
+    {"IV drug use", "Unsafe medical procedures"},
+    {"HCV RNA test", "Liver function tests"},
+    true
+}},
+
+{"hiv_aids", {
+    "HIV/AIDS", "Viral Infection",
+    {"acute: fever, rash, sore throat"},
+    {"chronic: weight loss, opportunistic infections"},
+    {{"Tenofovir/Emtricitabine", "300/200mg", "daily", "lifelong", MedicineType::ALLOPATHY},
+     {"Dolutegravir", "50mg", "daily", "lifelong", MedicineType::ALLOPATHY}},
+    {{"Chyawanprash", "1 tsp", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Syphilinum", "200C", "weekly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Safe sex", "Needle exchange", "PrEP for high-risk"},
+    {"Immunity-boosting foods", "Adequate nutrition"},
+    {"Unprotected sex", "Needle sharing"},
+    {"HIV antibody test", "Viral load"},
+    true
+}},
+
+{"mononucleosis", {
+    "Mononucleosis", "Viral Infection",
+    {"fatigue", "sore throat", "fever"},
+    {"swollen lymph nodes", "rash", "enlarged spleen"},
+    {{"Acetaminophen", "500mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "4 weeks", MedicineType::AYURVEDIC}},
+    {{"Kali Mur", "6X", "3 times daily", "4 weeks", MedicineType::HOMEOPATHY}},
+    {"Rest", "Avoid contact sports", "Hydration"},
+    {"Honey lemon tea", "Turmeric milk", "Coconut water"},
+    {"Close contact", "Teenagers/young adults"},
+    {"Monospot test", "EBV antibodies"},
+    true
+}},
+
+{"lyme_disease", {
+    "Lyme Disease", "Bacterial Infection",
+    {"bullseye rash", "fever", "fatigue"},
+    {"joint pain", "neurological symptoms", "heart palpitations"},
+    {{"Doxycycline", "100mg", "twice daily", "14-21 days", MedicineType::ALLOPATHY}},
+    {{"Neem", "500mg", "twice daily", "4 weeks", MedicineType::AYURVEDIC}},
+    {{"Ledum Pal", "30C", "3 times daily", "4 weeks", MedicineType::HOMEOPATHY}},
+    {"Tick prevention", "Early removal", "Protective clothing"},
+    {"Garlic", "Turmeric", "Green tea"},
+    {"Tick exposure", "Outdoor activities"},
+    {"ELISA test", "Western blot"},
+    false
+}},
+
+{"leptospirosis", {
+    "Leptospirosis", "Bacterial Infection",
+    {"high fever", "headache", "muscle aches"},
+    {"jaundice", "red eyes", "abdominal pain"},
+    {{"Doxycycline", "100mg", "twice daily", "7 days", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "2 weeks", MedicineType::AYURVEDIC}},
+    {{"Leptospira", "200C", "single dose", "once", MedicineType::HOMEOPATHY}},
+    {"Avoid contaminated water", "Rodent control", "Protective gear"},
+    {"Coconut water", "Turmeric", "Ginger"},
+    {"Flood exposure", "Animal contact"},
+    {"MAT test", "PCR"},
+    true
+}},
+
+{"rabies", {
+    "Rabies", "Viral Infection",
+    {"fever", "tingling at bite site", "hydrophobia"},
+    {"agitation", "hallucinations", "paralysis"},
+    {{"Rabies vaccine", "1ml", "days 0,3,7,14,28", "post-exposure", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "preventive", MedicineType::AYURVEDIC}},
+    {{"Lyssin", "200C", "single dose", "post-exposure", MedicineType::HOMEOPATHY}},
+    {"Animal vaccination", "Post-exposure prophylaxis"},
+    {"Wound cleaning", "Herbal antiseptics"},
+    {"Animal bites", "Unvaccinated pets"},
+    {"Direct fluorescent antibody test"},
+    true
+}},
+
+{"tetanus", {
+    "Tetanus", "Bacterial Infection",
+    {"muscle stiffness", "lockjaw", "difficulty swallowing"},
+    {"muscle spasms", "fever", "sweating"},
+    {{"Tetanus immunoglobulin", "as prescribed", "single dose", "once", MedicineType::ALLOPATHY},
+     {"Metronidazole", "500mg", "every 6 hours", "7-10 days", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "2 weeks", MedicineType::AYURVEDIC}},
+    {{"Hypericum", "200C", "3 times daily", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Vaccination", "Wound care", "Proper hygiene"},
+    {"Garlic", "Turmeric paste for wounds"},
+    {"Unvaccinated", "Wound contamination"},
+    {"Clinical diagnosis"},
+    false
+}},
+
+{"diphtheria", {
+    "Diphtheria", "Bacterial Infection",
+    {"sore throat", "fever", "swollen glands"},
+    {"gray throat membrane", "weakness", "breathing difficulty"},
+    {{"Diphtheria antitoxin", "as prescribed", "single dose", "once", MedicineType::ALLOPATHY},
+     {"Erythromycin", "500mg", "every 6 hours", "14 days", MedicineType::ALLOPATHY}},
+    {{"Tulsi", "10 leaves", "daily", "2 weeks", MedicineType::AYURVEDIC}},
+    {{"Diphtherinum", "200C", "single dose", "once", MedicineType::HOMEOPATHY}},
+    {"Vaccination", "Isolation", "Contact tracing"},
+    {"Salt water gargle", "Honey", "Turmeric milk"},
+    {"Unvaccinated", "Close contact"},
+    {"Throat culture"},
+    true
+}},
+
+{"whooping_cough", {
+    "Whooping Cough", "Bacterial Infection",
+    {"severe coughing fits", "whooping sound", "vomiting after cough"},
+    {"runny nose", "fever", "apnea in infants"},
+    {{"Azithromycin", "500mg", "daily", "5 days", MedicineType::ALLOPATHY}},
+    {{"Vasa", "500mg", "twice daily", "2 weeks", MedicineType::AYURVEDIC}},
+    {{"Pertussin", "30C", "3 times daily", "2 weeks", MedicineType::HOMEOPATHY}},
+    {"Vaccination", "Isolation", "Hand hygiene"},
+    {"Honey", "Ginger tea", "Turmeric"},
+    {"Unvaccinated", "Infant exposure"},
+    {"PCR test", "Culture"},
+    true
+}},
+
+{"meningitis", {
+    "Meningitis", "Bacterial/Viral Infection",
+    {"stiff neck", "high fever", "headache"},
+    {"nausea", "confusion", "light sensitivity"},
+    {{"Ceftriaxone", "2g", "every 12 hours", "7-14 days", MedicineType::ALLOPATHY},
+     {"Dexamethasone", "10mg", "every 6 hours", "4 days", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "recovery phase", MedicineType::AYURVEDIC}},
+    {{"Belladonna", "30C", "every 2 hours", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Vaccination", "Prophylaxis for contacts"},
+    {"Adequate hydration", "Rest"},
+    {"Close contact", "Dormitory living"},
+    {"Lumbar puncture", "Blood culture"},
+    true
+}},
+
+{"encephalitis", {
+    "Encephalitis", "Viral Infection",
+    {"fever", "headache", "confusion"},
+    {"seizures", "personality changes", "speech problems"},
+    {{"Acyclovir", "10mg/kg", "every 8 hours", "14-21 days", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "recovery phase", MedicineType::AYURVEDIC}},
+    {{"Belladonna", "30C", "every 2 hours", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Mosquito control", "Vaccination where available"},
+    {"Adequate rest", "Hydration"},
+    {"Mosquito exposure", "Immunocompromised"},
+    {"MRI brain", "EEG", "CSF analysis"},
+    false
+}},
+
+{"herpes_simplex", {
+    "Herpes Simplex", "Viral Infection",
+    {"painful blisters", "tingling before outbreak"},
+    {"fever", "swollen lymph nodes", "burning urination"},
+    {{"Acyclovir", "400mg", "3 times daily", "7-10 days", MedicineType::ALLOPATHY}},
+    {{"Neem", "as paste", "topically", "until healed", MedicineType::AYURVEDIC}},
+    {{"Natrum Mur", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Safe sex", "Avoid sharing items", "Stress management"},
+    {"Lysine", "Aloe vera", "Ice packs"},
+    {"Skin-to-skin contact", "Immunosuppression"},
+    {"Viral culture", "PCR"},
+    true
+}},
+
+{"shingles", {
+    "Shingles", "Viral Infection",
+    {"painful rash", "burning sensation", "blisters"},
+    {"fever", "headache", "fatigue"},
+    {{"Acyclovir", "800mg", "5 times daily", "7 days", MedicineType::ALLOPATHY},
+     {"Gabapentin", "as prescribed", "for nerve pain", "as needed", MedicineType::ALLOPATHY}},
+    {{"Neem", "as paste", "topically", "until healed", MedicineType::AYURVEDIC}},
+    {{"Rhus Tox", "30C", "3 times daily", "until healed", MedicineType::HOMEOPATHY}},
+    {"Vaccination", "Avoid scratching", "Cool compresses"},
+    {"Oatmeal baths", "Calamine lotion", "Capsaicin cream"},
+    {"Age", "Weakened immunity", "Chickenpox history"},
+    {"Clinical examination"},
+    true
+}},
+
+{"hand_foot_mouth", {
+    "Hand Foot Mouth Disease", "Viral Infection",
+    {"fever", "mouth sores", "skin rash"},
+    {"sore throat", "loss of appetite", "irritability"},
+    {{"Acetaminophen", "as needed", "for fever/pain", "as needed", MedicineType::ALLOPATHY}},
+    {{"Honey", "as needed", "applied to sores", "until healed", MedicineType::AYURVEDIC}},
+    {{"Borax", "30C", "3 times daily", "until healed", MedicineType::HOMEOPATHY}},
+    {"Hand hygiene", "Disinfect surfaces", "Avoid close contact"},
+    {"Cold liquids", "Soft foods", "Coconut water"},
+    {"Daycare attendance", "Close contact"},
+    {"Clinical diagnosis"},
+    true
+}},
+
+{"rotavirus", {
+    "Rotavirus", "Viral Infection",
+    {"severe diarrhea", "vomiting", "fever"},
+    {"abdominal pain", "dehydration", "lethargy"},
+    {{"Oral rehydration salts", "as directed", "frequently", "until recovery", MedicineType::ALLOPATHY}},
+    {{"Kutaja", "500mg", "twice daily", "until recovery", MedicineType::AYURVEDIC}},
+    {{"Podophyllum", "30C", "every 2 hours", "until improved", MedicineType::HOMEOPATHY}},
+    {"Vaccination", "Hand hygiene", "Proper sanitation"},
+    {"Rice water", "Banana", "Coconut water"},
+    {"Daycare attendance", "Poor sanitation"},
+    {"Stool antigen test"},
+    true
+}},
+
+{"norovirus", {
+    "Norovirus", "Viral Infection",
+    {"sudden vomiting", "diarrhea", "stomach pain"},
+    {"low-grade fever", "headache", "body aches"},
+    {{"Oral rehydration", "as needed", "frequently", "until recovery", MedicineType::ALLOPATHY}},
+    {{"Ginger tea", "as needed", "for nausea", "as needed", MedicineType::AYURVEDIC}},
+    {{"Arsenicum Album", "30C", "every 2 hours", "until improved", MedicineType::HOMEOPATHY}},
+    {"Hand hygiene", "Disinfect surfaces", "Isolate sick individuals"},
+    {"Clear fluids", "BRAT diet", "Probiotics"},
+    {"Close contact", "Contaminated food"},
+    {"Clinical diagnosis"},
+    true
+}},
+
+{"scarlet_fever", {
+    "Scarlet Fever", "Bacterial Infection",
+    {"sore throat", "fever", "strawberry tongue"},
+    {"sandpaper rash", "flushed face", "swollen glands"},
+    {{"Penicillin", "as prescribed", "for 10 days", "10 days", MedicineType::ALLOPATHY}},
+    {{"Tulsi", "10 leaves", "daily", "10 days", MedicineType::AYURVEDIC}},
+    {{"Belladonna", "30C", "3 times daily", "until fever subsides", MedicineType::HOMEOPATHY}},
+    {"Antibiotic course", "Rest", "Hydration"},
+    {"Honey lemon tea", "Salt water gargle", "Cool compresses"},
+    {"Close contact", "School-aged children"},
+    {"Throat culture"},
+    true
+}},
+
+{"toxic_shock", {
+    "Toxic Shock Syndrome", "Bacterial Infection",
+    {"high fever", "rash", "low blood pressure"},
+    {"vomiting", "diarrhea", "muscle aches"},
+    {{"Clindamycin", "900mg", "every 8 hours", "IV initially", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "recovery phase", MedicineType::AYURVEDIC}},
+    {{"Pyrogenium", "200C", "every 2 hours", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Proper tampon use", "Wound care", "Hygiene"},
+    {"Adequate hydration", "Rest"},
+    {"Tampon use", "Surgical wounds"},
+    {"Blood culture"},
+    false
+}},
+
+{"cellulitis", {
+    "Cellulitis", "Bacterial Infection",
+    {"red swollen skin", "pain", "warmth"},
+    {"fever", "skin dimpling", "lymph node swelling"},
+    {{"Cephalexin", "500mg", "every 6 hours", "7-14 days", MedicineType::ALLOPATHY}},
+    {{"Turmeric paste", "topically", "twice daily", "until healed", MedicineType::AYURVEDIC}},
+    {{"Apis Mellifica", "30C", "3 times daily", "until improved", MedicineType::HOMEOPATHY}},
+    {"Wound care", "Elevate affected limb", "Complete antibiotics"},
+    {"Warm compresses", "Tea tree oil (diluted)"},
+    {"Skin breaks", "Lymphedema", "Diabetes"},
+    {"Clinical diagnosis"},
+    false
+}},
+
+{"impetigo", {
+    "Impetigo", "Bacterial Infection",
+    {"honey-colored crusts", "itchy sores", "skin lesions"},
+    {"mild fever", "swollen lymph nodes", "spreading rash"},
+    {{"Mupirocin", "topically", "3 times daily", "7 days", MedicineType::ALLOPATHY}},
+    {{"Neem paste", "topically", "twice daily", "until healed", MedicineType::AYURVEDIC}},
+    {{"Antimonium Crudum", "30C", "3 times daily", "until healed", MedicineType::HOMEOPATHY}},
+    {"Hand hygiene", "Avoid scratching", "Isolate towels"},
+    {"Tea tree oil (diluted)", "Garlic paste"},
+    {"Skin breaks", "Warm humid climate"},
+    {"Clinical diagnosis"},
+    true
+}},
+
+{"angina", {
+    "Angina Pectoris", "Cardiovascular",
+    {"chest pressure", "pain radiating to arm/jaw", "shortness of breath"},
+    {"nausea", "fatigue", "sweating"},
+    {{"Nitroglycerin", "0.4mg", "as needed", "for attacks", MedicineType::ALLOPATHY},
+     {"Aspirin", "81mg", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Arjuna", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+     {"Guggulu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Cactus", "Q", "5 drops", "as needed", MedicineType::HOMEOPATHY},
+     {"Latrodectus", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Quit smoking", "Control BP", "Regular exercise"},
+    {"Garlic", "Hawthorn tea", "Omega-3s"},
+    {"Smoking", "High cholesterol", "Diabetes"},
+    {"Stress test", "Angiogram"},
+    false
+}},
+
+{"heart_failure", {
+    "Heart Failure", "Cardiovascular",
+    {"shortness of breath", "fatigue", "swollen legs"},
+    {"rapid weight gain", "reduced exercise tolerance", "nocturia"},
+    {{"Furosemide", "20-80mg", "daily", "long-term", MedicineType::ALLOPATHY},
+     {"Carvedilol", "3.125-25mg", "twice daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Arjuna", "1g", "twice daily", "long-term", MedicineType::AYURVEDIC},
+     {"Punarnava", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Digitalis", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Low-salt diet", "Fluid restriction", "Daily weight monitoring"},
+    {"Hawthorn", "CoQ10", "Magnesium"},
+    {"Coronary artery disease", "Hypertension", "Previous MI"},
+    {"Echocardiogram", "BNP test"},
+    false
+}},
+
+{"arrhythmia", {
+    "Arrhythmia", "Cardiovascular",
+    {"palpitations", "dizziness", "shortness of breath"},
+    {"chest pain", "fainting", "fatigue"},
+    {{"Metoprolol", "25-100mg", "twice daily", "long-term", MedicineType::ALLOPATHY},
+     {"Amiodarone", "200mg", "daily", "as needed", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Cactus", "Q", "5 drops", "as needed", MedicineType::HOMEOPATHY}},
+    {"Limit caffeine", "Stress management", "Regular ECGs"},
+    {"Hawthorn", "Magnesium", "Yoga"},
+    {"Heart disease", "Electrolyte imbalance", "Thyroid disorders"},
+    {"ECG", "Holter monitor"},
+    false
+}},
+
+{"atherosclerosis", {
+    "Atherosclerosis", "Cardiovascular",
+    {"often asymptomatic until advanced"},
+    {"chest pain", "leg pain with walking", "transient ischemic attacks"},
+    {{"Atorvastatin", "10-80mg", "daily", "long-term", MedicineType::ALLOPATHY},
+     {"Clopidogrel", "75mg", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Guggulu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Baryta Mur", "6X", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Healthy diet", "Regular exercise", "Smoking cessation"},
+    {"Garlic", "Turmeric", "Omega-3s"},
+    {"High cholesterol", "Hypertension", "Smoking"},
+    {"Angiogram", "Carotid ultrasound"},
+    false
+}},
+
+{"peripheral_artery", {
+    "Peripheral Artery Disease", "Cardiovascular",
+    {"leg pain with walking", "numbness in legs"},
+    {"weak pulses", "shiny skin", "slow healing wounds"},
+    {{"Cilostazol", "100mg", "twice daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Guggulu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Secale Cor", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Walking program", "Foot care", "Smoking cessation"},
+    {"Ginger", "Cayenne pepper", "Garlic"},
+    {"Smoking", "Diabetes", "Hypertension"},
+    {"Ankle-brachial index"},
+    false
+}},
+
+{"deep_vein_thrombosis", {
+    "Deep Vein Thrombosis", "Cardiovascular",
+    {"leg swelling", "pain", "redness"},
+    {"warmth", "vein distension", "tenderness"},
+    {{"Rivaroxaban", "15mg", "twice daily", "21 days then 20mg daily", MedicineType::ALLOPATHY}},
+    {{"Guggulu", "500mg", "twice daily", "3 months", MedicineType::AYURVEDIC}},
+    {{"Hamamelis", "30C", "3 times daily", "until resolved", MedicineType::HOMEOPATHY}},
+    {"Compression stockings", "Early ambulation", "Hydration"},
+    {"Turmeric", "Ginger", "Cayenne pepper"},
+    {"Immobility", "Surgery", "Genetic factors"},
+    {"D-dimer", "Doppler ultrasound"},
+    false
+}},
+
+{"varicose_veins", {
+    "Varicose Veins", "Cardiovascular",
+    {"bulging veins", "leg heaviness", "aching"},
+    {"swelling", "itching", "skin discoloration"},
+    {{"Compression stockings", "as needed", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Guggulu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Pulsatilla", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Elevate legs", "Exercise", "Weight management"},
+    {"Horse chestnut", "Butcher's broom", "Witch hazel"},
+    {"Prolonged standing", "Pregnancy", "Family history"},
+    {"Clinical exam", "Venous ultrasound"},
+    false
+}},
+
+{"pulmonary_embolism", {
+    "Pulmonary Embolism", "Cardiovascular",
+    {"sudden shortness of breath", "chest pain", "cough"},
+    {"rapid heart rate", "blood-streaked sputum", "fainting"},
+    {{"Rivaroxaban", "15mg", "twice daily", "21 days then 20mg daily", MedicineType::ALLOPATHY}},
+    {{"Guggulu", "500mg", "twice daily", "3 months", MedicineType::AYURVEDIC}},
+    {{"Lachesis", "30C", "3 times daily", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Early ambulation post-surgery", "Compression stockings"},
+    {"Garlic", "Ginger", "Turmeric"},
+    {"Recent surgery", "Immobility", "Genetic factors"},
+    {"CT pulmonary angiogram", "D-dimer"},
+    false
+}},
+
+{"cardiomyopathy", {
+    "Cardiomyopathy", "Cardiovascular",
+    {"shortness of breath", "fatigue", "swollen legs"},
+    {"irregular heartbeat", "dizziness", "fainting"},
+    {{"Carvedilol", "3.125-25mg", "twice daily", "long-term", MedicineType::ALLOPATHY},
+     {"Spironolactone", "25mg", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Arjuna", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Crataegus", "Q", "10 drops", "twice daily", MedicineType::HOMEOPATHY}},
+    {"Low-salt diet", "Fluid restriction", "Alcohol avoidance"},
+    {"CoQ10", "Magnesium", "Hawthorn"},
+    {"Family history", "Alcohol abuse", "Viral infections"},
+    {"Echocardiogram", "Cardiac MRI"},
+    false
+}},
+
+{"endocarditis", {
+    "Endocarditis", "Cardiovascular",
+    {"fever", "heart murmur", "fatigue"},
+    {"night sweats", "shortness of breath", "petechiae"},
+    {{"Vancomycin", "as prescribed", "IV", "4-6 weeks", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "recovery phase", MedicineType::AYURVEDIC}},
+    {{"Pyrogenium", "200C", "3 times daily", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Antibiotic prophylaxis for dental work", "Good oral hygiene"},
+    {"Garlic", "Turmeric", "Echinacea"},
+    {"Heart valve disease", "IV drug use", "Recent dental work"},
+    {"Blood cultures", "Echocardiogram"},
+    false
+}},
+
+{"myocarditis", {
+    "Myocarditis", "Cardiovascular",
+    {"chest pain", "fatigue", "shortness of breath"},
+    {"irregular heartbeat", "swelling", "flu-like symptoms"},
+    {{"Ibuprofen", "400mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY}},
+    {{"Arjuna", "500mg", "twice daily", "recovery phase", MedicineType::AYURVEDIC}},
+    {{"Aconite", "30C", "every 2 hours", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Rest", "Fluid restriction", "Avoid strenuous activity"},
+    {"CoQ10", "Magnesium", "Hawthorn"},
+    {"Viral infections", "Autoimmune diseases"},
+    {"Cardiac MRI", "Endomyocardial biopsy"},
+    false
+}},
+
+{"rheumatic_heart", {
+    "Rheumatic Heart Disease", "Cardiovascular",
+    {"shortness of breath", "fatigue", "chest pain"},
+    {"swollen joints", "fever", "irregular heartbeat"},
+    {{"Penicillin", "as prescribed", "long-term", "long-term", MedicineType::ALLOPATHY}},
+    {{"Guggulu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Kalmia", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Antibiotic prophylaxis", "Regular dental care"},
+    {"Turmeric", "Ginger", "Garlic"},
+    {"Untreated strep throat", "Crowded living conditions"},
+    {"Echocardiogram", "ASO titer"},
+    false
+}},
+
+{"aortic_aneurysm", {
+    "Aortic Aneurysm", "Cardiovascular",
+    {"often asymptomatic until rupture"},
+    {"sudden severe pain", "pulsating abdominal mass", "fainting"},
+    {{"Propranolol", "as prescribed", "to control BP", "long-term", MedicineType::ALLOPATHY}},
+    {{"Arjuna", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Baryta Mur", "6X", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Blood pressure control", "Smoking cessation", "Regular monitoring"},
+    {"Garlic", "Hawthorn", "CoQ10"},
+    {"Smoking", "Hypertension", "Family history"},
+    {"CT angiography", "Ultrasound"},
+    false
+}},
+
+{"hypercholesterolemia", {
+    "Hypercholesterolemia", "Cardiovascular",
+    {"often asymptomatic"},
+    {"xanthomas", "corneal arcus", "chest pain if advanced"},
+    {{"Atorvastatin", "10-80mg", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Guggulu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Cholesterinum", "3X", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Healthy diet", "Regular exercise", "Weight management"},
+    {"Garlic", "Flaxseeds", "Psyllium husk"},
+    {"Family history", "Poor diet", "Diabetes"},
+    {"Lipid profile"},
+    false
+}},
+
+{"pericarditis", {
+    "Pericarditis", "Cardiovascular",
+    {"sharp chest pain", "pain worse when lying down", "fever"},
+    {"shortness of breath", "fatigue", "palpitations"},
+    {{"Ibuprofen", "600mg", "every 8 hours", "1-2 weeks", MedicineType::ALLOPATHY}},
+    {{"Arjuna", "500mg", "twice daily", "until resolved", MedicineType::AYURVEDIC}},
+    {{"Aconite", "30C", "every 2 hours", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Rest", "Avoid strenuous activity", "Follow-up"},
+    {"Turmeric", "Ginger tea", "Garlic"},
+    {"Viral infections", "Autoimmune diseases"},
+    {"Echocardiogram", "ECG"},
+    false
+}},
+
+{"copd", {
+    "Chronic Obstructive Pulmonary Disease", "Respiratory",
+    {"chronic cough", "shortness of breath", "wheezing"},
+    {"chest tightness", "frequent infections", "blue lips"},
+    {{"Tiotropium", "18mcg", "daily", "long-term", MedicineType::ALLOPATHY},
+     {"Salbutamol", "as needed", "for attacks", "as needed", MedicineType::ALLOPATHY}},
+    {{"Vasa", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+     {"Sitopaladi", "1 tsp", "with honey", "daily", MedicineType::AYURVEDIC}},
+    {{"Antimonium Tart", "30C", "3 times daily", "for phlegm", MedicineType::HOMEOPATHY},
+     {"Arsenicum Album", "30C", "3 times daily", "for wheezing", MedicineType::HOMEOPATHY}},
+    {"Smoking cessation", "Pulmonary rehab", "Avoid pollutants"},
+    {"Ginger tea", "Eucalyptus oil", "Breathing exercises"},
+    {"Smoking", "Pollution exposure", "Alpha-1 deficiency"},
+    {"Spirometry", "Chest X-ray"},
+    false
+}},
+
+{"bronchitis", {
+    "Bronchitis", "Respiratory",
+    {"cough with mucus", "chest discomfort", "fatigue"},
+    {"mild fever", "shortness of breath", "wheezing"},
+    {{"Guaifenesin", "200-400mg", "every 4 hours", "7 days", MedicineType::ALLOPATHY},
+     {"Albuterol", "as needed", "for wheezing", "as needed", MedicineType::ALLOPATHY}},
+    {{"Tulsi", "10 leaves", "daily", "7 days", MedicineType::AYURVEDIC},
+     {"Yashtimadhu", "500mg", "twice daily", "7 days", MedicineType::AYURVEDIC}},
+    {{"Bryonia", "30C", "3 times daily", "7 days", MedicineType::HOMEOPATHY},
+     {"Ipecac", "30C", "3 times daily", "for cough", MedicineType::HOMEOPATHY}},
+    {"Hydration", "Steam inhalation", "Rest"},
+    {"Honey lemon tea", "Turmeric milk", "Ginger"},
+    {"Smoking", "Pollution", "Recent cold"},
+    {"Clinical exam", "Chest X-ray (if severe)"},
+    true
+}},
+
+{"emphysema", {
+    "Emphysema", "Respiratory",
+    {"shortness of breath", "chronic cough", "fatigue"},
+    {"barrel chest", "weight loss", "pursed-lip breathing"},
+    {{"Tiotropium", "18mcg", "daily", "long-term", MedicineType::ALLOPATHY},
+     {"Prednisone", "as prescribed", "for exacerbations", "as needed", MedicineType::ALLOPATHY}},
+    {{"Vasa", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Antimonium Tart", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Smoking cessation", "Pulmonary rehab", "Oxygen if needed"},
+    {"Breathing exercises", "Ginger tea", "Eucalyptus oil"},
+    {"Smoking", "Alpha-1 antitrypsin deficiency"},
+    {"CT chest", "Pulmonary function tests"},
+    false
+}},
+
+{"lung_cancer", {
+    "Lung Cancer", "Respiratory",
+    {"persistent cough", "coughing blood", "chest pain"},
+    {"weight loss", "hoarseness", "recurrent infections"},
+    {{"Chemotherapy", "as prescribed", "per protocol", "per protocol", MedicineType::ALLOPATHY}},
+    {{"Kanchnar Guggulu", "500mg", "twice daily", "supportive", MedicineType::AYURVEDIC}},
+    {{"Carcinosin", "200C", "weekly", "supportive", MedicineType::HOMEOPATHY}},
+    {"Smoking cessation", "Palliative care", "Nutrition support"},
+    {"Turmeric", "Green tea", "Meditation"},
+    {"Smoking", "Radon exposure", "Family history"},
+    {"CT scan", "Biopsy"},
+    false
+}},
+
+{"pleurisy", {
+    "Pleurisy", "Respiratory",
+    {"sharp chest pain", "pain with breathing", "shortness of breath"},
+    {"cough", "fever", "rapid shallow breathing"},
+    {{"Ibuprofen", "400-600mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY}},
+    {{"Yashtimadhu", "500mg", "twice daily", "until resolved", MedicineType::AYURVEDIC}},
+    {{"Bryonia", "30C", "every 2 hours", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Treat underlying cause", "Rest", "Shallow breathing"},
+    {"Ginger tea", "Turmeric milk", "Steam inhalation"},
+    {"Viral infections", "Pneumonia", "Autoimmune diseases"},
+    {"Chest X-ray", "CT scan"},
+    false
+}},
+
+{"pulmonary_fibrosis", {
+    "Pulmonary Fibrosis", "Respiratory",
+    {"progressive shortness of breath", "dry cough", "fatigue"},
+    {"clubbing of fingers", "weight loss", "aching muscles"},
+    {{"Pirfenidone", "801mg", "three times daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Vasa", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Arsenicum Album", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Oxygen therapy", "Pulmonary rehab", "Vaccinations"},
+    {"Breathing exercises", "Turmeric", "Green tea"},
+    {"Smoking", "Environmental exposures", "Autoimmune diseases"},
+    {"CT chest", "Lung biopsy"},
+    false
+}},
+
+{"sarcoidosis", {
+    "Sarcoidosis", "Respiratory",
+    {"shortness of breath", "persistent cough", "fatigue"},
+    {"skin lesions", "eye inflammation", "swollen lymph nodes"},
+    {{"Prednisone", "as prescribed", "tapering dose", "as needed", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Tuberculinum", "200C", "monthly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Regular monitoring", "Eye exams", "Skin care"},
+    {"Turmeric", "Omega-3s", "Vitamin D"},
+    {"African descent", "Family history"},
+    {"Chest X-ray", "Biopsy"},
+    false
+}},
+
+{"cystic_fibrosis", {
+    "Cystic Fibrosis", "Respiratory",
+    {"salty-tasting skin", "persistent cough", "poor growth"},
+    {"recurrent infections", "clubbing", "greasy stools"},
+    {{"Dornase alfa", "as prescribed", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Vasa", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Calcarea Carb", "200C", "weekly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Airway clearance", "High-calorie diet", "Enzyme supplements"},
+    {"Saline nebulization", "Probiotics", "Omega-3s"},
+    {"Genetic", "Family history"},
+    {"Sweat test", "Genetic testing"},
+    false
+}},
+
+{"sleep_apnea", {
+    "Sleep Apnea", "Respiratory",
+    {"loud snoring", "gasping during sleep", "daytime sleepiness"},
+    {"morning headache", "irritability", "difficulty concentrating"},
+    {{"CPAP", "as prescribed", "nightly", "long-term", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "at bedtime", "long-term", MedicineType::AYURVEDIC}},
+    {{"Opium", "30C", "at bedtime", "long-term", MedicineType::HOMEOPATHY}},
+    {"Weight loss", "Avoid alcohol", "Side sleeping"},
+    {"Peppermint oil", "Eucalyptus oil", "Thyme tea"},
+    {"Obesity", "Large neck circumference"},
+    {"Sleep study"},
+    false
+}},
+
+{"tuberculosis", {
+    "Tuberculosis", "Respiratory",
+    {"persistent cough", "fever", "night sweats"},
+    {"weight loss", "hemoptysis", "fatigue"},
+    {{"Rifampin", "10mg/kg", "daily", "6 months", MedicineType::ALLOPATHY},
+     {"Isoniazid", "5mg/kg", "daily", "6 months", MedicineType::ALLOPATHY}},
+    {{"Vasa", "500mg", "twice daily", "6 months", MedicineType::AYURVEDIC}},
+    {{"Tuberculinum", "200C", "monthly", "as adjuvant", MedicineType::HOMEOPATHY}},
+    {"Complete treatment", "Infection control", "Nutrition"},
+    {"Garlic", "Turmeric", "Black pepper"},
+    {"Close contact", "HIV", "Malnutrition"},
+    {"Sputum test", "Chest X-ray"},
+    true
+}},
+
+{"pneumothorax", {
+    "Pneumothorax", "Respiratory",
+    {"sudden chest pain", "shortness of breath", "rapid heart rate"},
+    {"cyanosis", "dry cough", "fatigue"},
+    {{"Oxygen", "as needed", "as needed", "until resolved", MedicineType::ALLOPATHY}},
+    {{"Yashtimadhu", "500mg", "twice daily", "recovery phase", MedicineType::AYURVEDIC}},
+    {{"Aconite", "30C", "every 2 hours", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Avoid flying/scuba diving", "Smoking cessation"},
+    {"Breathing exercises", "Turmeric", "Ginger"},
+    {"Tall thin build", "Smoking", "Trauma"},
+    {"Chest X-ray"},
+    false
+}},
+
+{"histoplasmosis", {
+    "Histoplasmosis", "Respiratory",
+    {"fever", "chest pain", "dry cough"},
+    {"fatigue", "weight loss", "night sweats"},
+    {{"Itraconazole", "200mg", "daily", "3-12 months", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "3 months", MedicineType::AYURVEDIC}},
+    {{"Arsenicum Album", "30C", "3 times daily", "3 months", MedicineType::HOMEOPATHY}},
+    {"Avoid bird/bat droppings", "Mask in endemic areas"},
+    {"Garlic", "Turmeric", "Echinacea"},
+    {"Soil disturbance", "Immunocompromised"},
+    {"Antigen test", "Culture"},
+    false
+}},
+
+{"bronchiectasis", {
+    "Bronchiectasis", "Respiratory",
+    {"chronic cough", "copious sputum", "recurrent infections"},
+    {"shortness of breath", "wheezing", "clubbing"},
+    {{"Azithromycin", "250mg", "three times weekly", "long-term", MedicineType::ALLOPATHY}},
+    {{"Vasa", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Kali Bich", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Airway clearance", "Vaccinations", "Hydration"},
+    {"Steam inhalation", "Turmeric", "Ginger"},
+    {"Recurrent infections", "Cystic fibrosis"},
+    {"CT chest", "Sputum culture"},
+    false
+}},
+
+{"interstitial_lung", {
+    "Interstitial Lung Disease", "Respiratory",
+    {"progressive shortness of breath", "dry cough", "fatigue"},
+    {"clubbing", "weight loss", "chest discomfort"},
+    {{"Prednisone", "as prescribed", "tapering dose", "as needed", MedicineType::ALLOPATHY}},
+    {{"Vasa", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Arsenicum Album", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Oxygen therapy", "Pulmonary rehab", "Avoid smoking"},
+    {"Turmeric", "Green tea", "Omega-3s"},
+    {"Smoking", "Environmental exposures", "Autoimmune diseases"},
+    {"CT chest", "Lung biopsy"},
+    false
+}},
+
+{"occupational_lung", {
+    "Occupational Lung Disease", "Respiratory",
+    {"shortness of breath", "cough", "chest tightness"},
+    {"wheezing", "fatigue", "clubbing in advanced cases"},
+    {{"Bronchodilators", "as needed", "as needed", "as needed", MedicineType::ALLOPATHY}},
+    {{"Vasa", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Silicea", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Protective equipment", "Avoid further exposure", "Smoking cessation"},
+    {"Steam inhalation", "Turmeric", "Ginger"},
+    {"Asbestos", "Silica", "Coal dust exposure"},
+    {"Chest X-ray", "Pulmonary function tests"},
+    false
+}},
+
+{"epilepsy", {
+    "Epilepsy", "Neurological",
+    {"seizures", "temporary confusion", "staring spells"},
+    {"uncontrollable movements", "loss of consciousness", "aura"},
+    {{"Levetiracetam", "500mg", "twice daily", "long-term", MedicineType::ALLOPATHY},
+     {"Lorazepam", "as needed", "for acute seizures", "as needed", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+     {"Jatamansi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Cicuta", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY},
+     {"Artemisia", "30C", "3 times daily", "for petit mal", MedicineType::HOMEOPATHY}},
+    {"Regular medication", "Seizure precautions", "Adequate sleep"},
+    {"Ketogenic diet", "Yoga", "Magnesium-rich foods"},
+    {"Brain injury", "Stroke", "Genetic factors"},
+    {"EEG", "MRI brain"},
+    false
+}},
+
+{"parkinsons", {
+    "Parkinson's Disease", "Neurological",
+    {"tremors", "stiffness", "bradykinesia"},
+    {"postural instability", "shuffling gait", "mask-like face"},
+    {{"Levodopa/Carbidopa", "100/25mg", "3 times daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Kapikachhu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Mercurius", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Physical therapy", "Fall prevention", "Speech therapy"},
+    {"Mucuna pruriens", "Omega-3s", "CoQ10"},
+    {"Age", "Genetic factors", "Toxin exposure"},
+    {"Clinical diagnosis", "DAT scan"},
+    false
+}},
+
+{"alzheimers", {
+    "Alzheimer's Disease", "Neurological",
+    {"memory loss", "confusion", "difficulty with familiar tasks"},
+    {"personality changes", "language problems", "disorientation"},
+    {{"Donepezil", "5-10mg", "at bedtime", "long-term", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Baryta Carb", "200C", "weekly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Routine", "Cognitive stimulation", "Safety modifications"},
+    {"Turmeric", "Omega-3s", "Ginkgo biloba"},
+    {"Age", "Family history", "Head trauma"},
+    {"Cognitive testing", "MRI brain"},
+    false
+}},
+
+{"multiple_sclerosis", {
+    "Multiple Sclerosis", "Neurological",
+    {"numbness/weakness", "vision problems", "electric-shock sensations"},
+    {"tremor", "slurred speech", "fatigue"},
+    {{"Interferon beta", "as prescribed", "injections", "long-term", MedicineType::ALLOPATHY}},
+    {{"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Plumbum Met", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Physical therapy", "Stress management", "Cool environment"},
+    {"Omega-3s", "Vitamin D", "Turmeric"},
+    {"Female", "Northern latitude", "Family history"},
+    {"MRI", "Lumbar puncture"},
+    false
+}},
+
+{"stroke", {
+    "Stroke", "Neurological",
+    {"sudden numbness", "confusion", "vision problems"},
+    {"severe headache", "dizziness", "loss of balance"},
+    {{"tPA", "as prescribed", "IV within 4.5 hours", "acute only", MedicineType::ALLOPATHY},
+     {"Aspirin", "81mg", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Arjuna", "500mg", "twice daily", "recovery phase", MedicineType::AYURVEDIC}},
+    {{"Arnica", "200C", "every 15 minutes", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Rehabilitation", "Risk factor control", "Fall prevention"},
+    {"Turmeric", "Ginger", "Garlic"},
+    {"Hypertension", "Atrial fibrillation", "Smoking"},
+    {"CT scan", "MRI"},
+    false
+}},
+
+{"als", {
+    "Amyotrophic Lateral Sclerosis", "Neurological",
+    {"muscle weakness", "twitching", "slurred speech"},
+    {"difficulty swallowing", "muscle cramps", "weight loss"},
+    {{"Riluzole", "50mg", "twice daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Lathyrus", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Physical therapy", "Nutrition support", "Communication devices"},
+    {"Turmeric", "Omega-3s", "CoQ10"},
+    {"Age", "Family history", "Military service"},
+    {"EMG", "Nerve conduction studies"},
+    false
+}},
+
+{"bell_palsy", {
+    "Bell's Palsy", "Neurological",
+    {"sudden facial drooping", "drooling", "eye dryness"},
+    {"altered taste", "facial pain", "sound sensitivity"},
+    {{"Prednisone", "60mg", "daily", "tapering over 10 days", MedicineType::ALLOPATHY}},
+    {{"Ashwagandha", "500mg", "twice daily", "4 weeks", MedicineType::AYURVEDIC}},
+    {{"Causticum", "30C", "3 times daily", "4 weeks", MedicineType::HOMEOPATHY}},
+    {"Eye protection", "Facial exercises", "Massage"},
+    {"Acupuncture", "Warm compresses", "B-complex vitamins"},
+    {"Diabetes", "Pregnancy", "Recent viral illness"},
+    {"Clinical diagnosis"},
+    false
+}},
+
+{"carpal_tunnel", {
+    "Carpal Tunnel Syndrome", "Neurological",
+    {"hand numbness", "tingling", "weak grip"},
+    {"nighttime symptoms", "pain radiating up arm", "dropping objects"},
+    {{"Wrist splint", "as needed", "especially at night", "long-term", MedicineType::ALLOPATHY},
+     {"Ibuprofen", "400mg", "as needed", "as needed", MedicineType::ALLOPATHY}},
+    {{"Nirgundi oil", "topically", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Hypericum", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Ergonomic adjustments", "Wrist exercises", "Activity modification"},
+    {"Turmeric", "Ginger compresses", "Omega-3s"},
+    {"Repetitive motions", "Diabetes", "Pregnancy"},
+    {"Nerve conduction studies"},
+    false
+}},
+
+{"restless_leg", {
+    "Restless Leg Syndrome", "Neurological",
+    {"urge to move legs", "uncomfortable sensations", "worsening at rest"},
+    {"sleep disturbance", "twitching", "relief with movement"},
+    {{"Pramipexole", "0.125mg", "at bedtime", "long-term", MedicineType::ALLOPATHY}},
+    {{"Ashwagandha", "500mg", "at bedtime", "long-term", MedicineType::AYURVEDIC}},
+    {{"Zincum Met", "30C", "at bedtime", "long-term", MedicineType::HOMEOPATHY}},
+    {"Regular sleep schedule", "Avoid caffeine", "Evening walks"},
+    {"Magnesium", "Iron if deficient", "Warm baths"},
+    {"Iron deficiency", "Pregnancy", "Family history"},
+    {"Iron studies"},
+    false
+}},
+
+{"neuropathy", {
+    "Peripheral Neuropathy", "Neurological",
+    {"numbness", "tingling", "burning pain"},
+    {"sensitivity to touch", "muscle weakness", "balance problems"},
+    {{"Gabapentin", "300mg", "three times daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Plumbum Met", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Blood sugar control", "Foot care", "Avoid alcohol"},
+    {"Alpha-lipoic acid", "B-complex vitamins", "Acupuncture"},
+    {"Diabetes", "Alcoholism", "Vitamin deficiencies"},
+    {"Nerve conduction studies"},
+    false
+}},
+
+{"myasthenia_gravis", {
+    "Myasthenia Gravis", "Neurological",
+    {"muscle weakness", "drooping eyelids", "double vision"},
+    {"difficulty swallowing", "slurred speech", "shortness of breath"},
+    {{"Pyridostigmine", "60mg", "every 4 hours", "long-term", MedicineType::ALLOPATHY}},
+    {{"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Gelsemium", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Energy conservation", "Avoid overheating", "Monitor breathing"},
+    {"CoQ10", "Magnesium", "Omega-3s"},
+    {"Female", "Thymus abnormalities"},
+    {"Edrophonium test", "Antibody tests"},
+    false
+}},
+
+{"huntingtons", {
+    "Huntington's Disease", "Neurological",
+    {"involuntary movements", "mood swings", "cognitive decline"},
+    {"irritability", "depression", "difficulty swallowing"},
+    {{"Tetrabenazine", "as prescribed", "for chorea", "long-term", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Agaricus", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Physical therapy", "Speech therapy", "Nutrition support"},
+    {"Omega-3s", "CoQ10", "Creatine"},
+    {"Family history"},
+    {"Genetic testing"},
+    false
+}},
+
+{"brain_aneurysm", {
+    "Brain Aneurysm", "Neurological",
+    {"often asymptomatic until rupture"},
+    {"sudden severe headache", "nausea", "vision changes"},
+    {{"Nimodipine", "60mg", "every 4 hours", "21 days post-rupture", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "recovery phase", MedicineType::AYURVEDIC}},
+    {{"Arnica", "200C", "every 15 minutes", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Blood pressure control", "Avoid smoking", "Regular monitoring"},
+    {"Garlic", "Hawthorn", "Omega-3s"},
+    {"Smoking", "Hypertension", "Family history"},
+    {"CT angiography"},
+    false
+}},
+
+{"concussion", {
+    "Concussion", "Neurological",
+    {"headache", "confusion", "dizziness"},
+    {"nausea", "memory problems", "sensitivity to light"},
+    {{"Acetaminophen", "500mg", "as needed", "for headache", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "2 weeks", MedicineType::AYURVEDIC}},
+    {{"Arnica", "30C", "3 times daily", "2 weeks", MedicineType::HOMEOPATHY}},
+    {"Cognitive rest", "Gradual return to activity", "Avoid reinjury"},
+    {"Omega-3s", "Magnesium", "Ginger tea"},
+    {"Contact sports", "Falls", "Auto accidents"},
+    {"Clinical diagnosis"},
+    false
+}},
+
+{"meningioma", {
+    "Meningioma", "Neurological",
+    {"often asymptomatic"},
+    {"headaches", "seizures", "vision changes"},
+    {{"Observation", "as needed", "as needed", "long-term", MedicineType::ALLOPATHY}},
+    {{"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Calcarea Fluor", "6X", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Regular imaging", "Symptom monitoring", "Seizure precautions"},
+    {"Turmeric", "Green tea", "Meditation"},
+    {"Female", "Radiation exposure"},
+    {"MRI brain"},
+    false
+}},
+
+{"crohns", {
+    "Crohn's Disease", "Gastrointestinal",
+    {"abdominal pain", "diarrhea", "weight loss"},
+    {"fatigue", "mouth sores", "reduced appetite"},
+    {{"Mesalamine", "1.2g", "3 times daily", "long-term", MedicineType::ALLOPATHY},
+     {"Prednisone", "as prescribed", "tapering dose", "flare-ups", MedicineType::ALLOPATHY}},
+    {{"Kutaja", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+     {"Bilva", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Mercurius Cor", "30C", "3 times daily", "flare-ups", MedicineType::HOMEOPATHY},
+     {"Nux Vomica", "30C", "3 times daily", "for cramps", MedicineType::HOMEOPATHY}},
+    {"Low-residue diet", "Stress management", "Monitor nutrition"},
+    {"Probiotics", "Aloe vera juice", "Turmeric"},
+    {"Family history", "Smoking", "Autoimmune tendency"},
+    {"Colonoscopy", "CT enterography"},
+    false
+}},
+
+{"ulcerative_colitis", {
+    "Ulcerative Colitis", "Gastrointestinal",
+    {"bloody diarrhea", "abdominal pain", "urgency"},
+    {"fatigue", "weight loss", "fever"},
+    {{"Mesalamine", "1.2g", "3 times daily", "long-term", MedicineType::ALLOPATHY},
+     {"Prednisone", "as prescribed", "tapering dose", "flare-ups", MedicineType::ALLOPATHY}},
+    {{"Kutaja", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Mercurius Cor", "30C", "3 times daily", "flare-ups", MedicineType::HOMEOPATHY}},
+    {"Low-residue diet during flares", "Hydration", "Stress management"},
+    {"Probiotics", "Boswellia", "Turmeric"},
+    {"Family history", "Autoimmune tendency"},
+    {"Colonoscopy", "Stool tests"},
+    false
+}},
+
+{"celiac", {
+    "Celiac Disease", "Gastrointestinal",
+    {"diarrhea", "bloating", "abdominal pain"},
+    {"fatigue", "weight loss", "rash"},
+    {{"Strict gluten-free diet", "lifelong", "lifelong", "lifelong", MedicineType::ALLOPATHY}},
+    {{"Kutaja", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Natrum Phos", "6X", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Gluten avoidance", "Nutrition monitoring", "Vitamin supplements"},
+    {"Probiotics", "Ginger tea", "Turmeric"},
+    {"Family history", "Autoimmune diseases"},
+    {"Blood tests", "Endoscopy"},
+    false
+}},
+
+{"diverticulitis", {
+    "Diverticulitis", "Gastrointestinal",
+    {"left lower abdominal pain", "fever", "constipation/diarrhea"},
+    {"nausea", "bloating", "rectal bleeding"},
+    {{"Ciprofloxacin+Metronidazole", "as prescribed", "7-10 days", "7-10 days", MedicineType::ALLOPATHY}},
+    {{"Triphala", "500mg", "twice daily", "2 weeks", MedicineType::AYURVEDIC}},
+    {{"Bryonia", "30C", "3 times daily", "acute phase", MedicineType::HOMEOPATHY}},
+    {"High-fiber diet when well", "Hydration", "Avoid nuts/seeds during flare"},
+    {"Aloe vera juice", "Chamomile tea", "Slippery elm"},
+    {"Low-fiber diet", "Obesity", "Age"},
+    {"CT scan", "Colonoscopy after resolution"},
+    false
+}},
+
+{"gallstones", {
+    "Gallstones", "Gastrointestinal",
+    {"right upper quadrant pain", "nausea", "bloating"},
+    {"fever", "jaundice", "clay-colored stools"},
+    {{"Ursodiol", "as prescribed", "for small stones", "long-term", MedicineType::ALLOPATHY}},
+    {{"Punarnava", "500mg", "twice daily", "3 months", MedicineType::AYURVEDIC}},
+    {{"Chelidonium", "30C", "3 times daily", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Low-fat diet", "Weight management", "Regular meals"},
+    {"Peppermint tea", "Apple juice", "Lemon water"},
+    {"Female", "Obesity", "Rapid weight loss"},
+    {"Ultrasound", "HIDA scan"},
+    false
+}},
+
+{"cirrhosis", {
+    "Cirrhosis", "Gastrointestinal",
+    {"fatigue", "jaundice", "itching"},
+    {"ascites", "confusion", "bruising easily"},
+    {{"Diuretics", "as prescribed", "for ascites", "long-term", MedicineType::ALLOPATHY}},
+    {{"Bhumi Amla", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Carduus Marianus", "Q", "10 drops", "twice daily", MedicineType::HOMEOPATHY}},
+    {"Alcohol avoidance", "Low-salt diet", "Vaccinations"},
+    {"Milk thistle", "Dandelion root", "Turmeric"},
+    {"Alcohol abuse", "Hepatitis", "NAFLD"},
+    {"Liver function tests", "Fibroscan"},
+    false
+}},
+
+{"pancreatitis", {
+    "Pancreatitis", "Gastrointestinal",
+    {"severe upper abdominal pain", "nausea", "vomiting"},
+    {"fever", "tenderness", "rapid pulse"},
+    {{"IV fluids", "as needed", "as needed", "acute phase", MedicineType::ALLOPATHY},
+     {"Pain control", "as needed", "as needed", "acute phase", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "recovery phase", MedicineType::AYURVEDIC}},
+    {{"Iris Versicolor", "30C", "3 times daily", "acute phase", MedicineType::HOMEOPATHY}},
+    {"NPO during acute phase", "Alcohol cessation", "Low-fat diet"},
+    {"Turmeric", "Ginger tea", "Probiotics"},
+    {"Alcohol abuse", "Gallstones", "High triglycerides"},
+    {"Amylase/lipase", "CT abdomen"},
+    false
+}},
+
+{"gerd", {
+    "GERD", "Gastrointestinal",
+    {"heartburn", "regurgitation", "chest pain"},
+    {"chronic cough", "hoarseness", "difficulty swallowing"},
+    {{"Omeprazole", "20mg", "daily", "4-8 weeks", MedicineType::ALLOPATHY}},
+    {{"Yashtimadhu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Robinia", "30C", "3 times daily", "as needed", MedicineType::HOMEOPATHY}},
+    {"Small frequent meals", "Avoid late meals", "Elevate head of bed"},
+    {"Aloe vera juice", "Slippery elm", "Chamomile tea"},
+    {"Obesity", "Hiatal hernia", "Pregnancy"},
+    {"Endoscopy if severe"},
+    false
+}},
+
+{"hemorrhoids", {
+    "Hemorrhoids", "Gastrointestinal",
+    {"rectal bleeding", "itching", "pain"},
+    {"prolapse", "mucus discharge", "lump"},
+    {{"Hydrocortisone cream", "as needed", "topically", "short-term", MedicineType::ALLOPATHY}},
+    {{"Triphala", "500mg", "twice daily", "2 weeks", MedicineType::AYURVEDIC}},
+    {{"Hamamelis", "30C", "3 times daily", "acute phase", MedicineType::HOMEOPATHY}},
+    {"High-fiber diet", "Hydration", "Sitz baths"},
+    {"Witch hazel", "Aloe vera gel", "Coconut oil"},
+    {"Chronic constipation", "Pregnancy", "Prolonged sitting"},
+    {"Clinical exam"},
+    false
+}},
+
+{"irritable_bowel", {
+    "Irritable Bowel Syndrome", "Gastrointestinal",
+    {"abdominal pain", "bloating", "changes in bowel habits"},
+    {"mucus in stool", "urgency", "incomplete evacuation"},
+    {{"Hyoscyamine", "as needed", "for cramps", "as needed", MedicineType::ALLOPATHY}},
+    {{"Hingvastak Churna", "1 tsp", "with warm water", "twice daily", MedicineType::AYURVEDIC}},
+    {{"Nux Vomica", "30C", "3 times daily", "as needed", MedicineType::HOMEOPATHY}},
+    {"Fiber management", "Stress reduction", "Food diary"},
+    {"Peppermint oil", "Probiotics", "Ginger tea"},
+    {"Stress", "Food intolerances", "Female"},
+    {"Clinical diagnosis"},
+    false
+}},
+
+{"lactose_intolerance", {
+    "Lactose Intolerance", "Gastrointestinal",
+    {"bloating", "diarrhea", "abdominal cramps"},
+    {"gas", "nausea", "rumbling sounds"},
+    {{"Lactase enzyme", "as needed", "with dairy", "as needed", MedicineType::ALLOPATHY}},
+    {{"Ginger tea", "as needed", "after dairy", "as needed", MedicineType::AYURVEDIC}},
+    {{"Lac Defloratum", "30C", "as needed", "after dairy", MedicineType::HOMEOPATHY}},
+    {"Lactose avoidance", "Calcium alternatives", "Read labels"},
+    {"Fermented dairy", "Probiotics", "Ginger"},
+    {"Ethnic predisposition", "Age", "Small intestine damage"},
+    {"Hydrogen breath test"},
+    false
+}},
+
+{"appendicitis", {
+    "Appendicitis", "Gastrointestinal",
+    {"right lower quadrant pain", "nausea", "loss of appetite"},
+    {"fever", "rebound tenderness", "constipation/diarrhea"},
+    {{"IV antibiotics", "as prescribed", "pre-op", "acute phase", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "post-op", MedicineType::AYURVEDIC}},
+    {{"Belladonna", "30C", "every 2 hours", "acute phase", MedicineType::HOMEOPATHY}},
+    {"NPO pre-op", "Early surgical consult", "Post-op mobility"},
+    {"Turmeric", "Ginger", "Probiotics post-op"},
+    {"Age 10-30", "Family history"},
+    {"CT scan", "Ultrasound"},
+    false
+}},
+
+{"hiatal_hernia", {
+    "Hiatal Hernia", "Gastrointestinal",
+    {"heartburn", "chest pain", "regurgitation"},
+    {"difficulty swallowing", "belching", "bloating"},
+    {{"Omeprazole", "20mg", "daily", "as needed", MedicineType::ALLOPATHY}},
+    {{"Yashtimadhu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Nux Vomica", "30C", "3 times daily", "as needed", MedicineType::HOMEOPATHY}},
+    {"Small meals", "Avoid lying down after eating", "Weight management"},
+    {"Aloe vera juice", "Slippery elm", "Chamomile tea"},
+    {"Obesity", "Age", "Smoking"},
+    {"Endoscopy", "Barium swallow"},
+    false
+}},
+
+{"peptic_ulcer", {
+    "Peptic Ulcer", "Gastrointestinal",
+    {"burning stomach pain", "bloating", "heartburn"},
+    {"nausea", "vomiting", "loss of appetite"},
+    {{"Omeprazole", "20mg", "daily", "4-8 weeks", MedicineType::ALLOPATHY},
+     {"Amoxicillin+Clarithromycin", "as prescribed", "twice daily", "14 days (H. pylori)", MedicineType::ALLOPATHY}},
+    {{"Yashtimadhu", "500mg", "twice daily", "4-8 weeks", MedicineType::AYURVEDIC}},
+    {{"Nux Vomica", "30C", "3 times daily", "as needed", MedicineType::HOMEOPATHY}},
+    {"Avoid NSAIDs", "Limit alcohol", "Small frequent meals"},
+    {"Cabbage juice", "Banana", "Honey"},
+    {"H. pylori", "NSAID use", "Smoking"},
+    {"Endoscopy", "H. pylori testing"},
+    false
+}},
+
+{"gastroparesis", {
+    "Gastroparesis", "Gastrointestinal",
+    {"nausea", "vomiting", "early satiety"},
+    {"bloating", "heartburn", "weight loss"},
+    {{"Metoclopramide", "10mg", "before meals", "long-term", MedicineType::ALLOPATHY}},
+    {{"Ginger", "as tea", "before meals", "long-term", MedicineType::AYURVEDIC}},
+    {{"Carbo Veg", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Small frequent meals", "Low-fiber/fat", "Liquid nutrition"},
+    {"Ginger tea", "Peppermint tea", "Probiotics"},
+    {"Diabetes", "Post-viral", "Autoimmune"},
+    {"Gastric emptying study"},
+    false
+}},
+
+{"hypothyroidism", {
+    "Hypothyroidism", "Endocrine",
+    {"fatigue", "weight gain", "cold intolerance"},
+    {"constipation", "dry skin", "depression", "hair loss"},
+    {{"Levothyroxine", "as prescribed", "daily", "lifelong", MedicineType::ALLOPATHY}},
+    {{"Kanchanar Guggulu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+     {"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Thyroidinum", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY},
+     {"Calcarea Carb", "200C", "weekly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Regular TSH checks", "Consistent medication timing"},
+    {"Coconut oil", "Brazil nuts", "Vitamin D"},
+    {"Autoimmune", "Iodine deficiency", "Radiation exposure"},
+    {"TSH test", "Free T4"},
+    false
+}},
+
+{"hyperthyroidism", {
+    "Hyperthyroidism", "Endocrine",
+    {"weight loss", "rapid heartbeat", "nervousness"},
+    {"sweating", "tremors", "heat intolerance"},
+    {{"Methimazole", "5-30mg", "daily", "12-18 months", MedicineType::ALLOPATHY}},
+    {{"Jatamansi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Iodum", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Regular monitoring", "Stress management", "Eye protection (Graves)"},
+    {"Bugleweed tea", "Lemon balm", "Avoid iodine-rich foods"},
+    {"Autoimmune", "Female", "Family history"},
+    {"TSH test", "Free T4"},
+    false
+}},
+
+{"diabetes_type1", {
+    "Type 1 Diabetes", "Endocrine",
+    {"excessive thirst", "frequent urination", "weight loss"},
+    {"fatigue", "blurred vision", "hunger"},
+    {{"Insulin", "as prescribed", "multiple daily injections", "lifelong", MedicineType::ALLOPATHY}},
+    {{"Vijayasar", "as decoction", "daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Syzygium Jambolanum", "Q", "10 drops", "twice daily", MedicineType::HOMEOPATHY}},
+    {"Regular glucose monitoring", "Carb counting", "Emergency glucagon"},
+    {"Fenugreek", "Bitter gourd", "Cinnamon"},
+    {"Family history", "Autoimmune tendency"},
+    {"Fasting glucose", "HbA1c"},
+    false
+}},
+
+{"diabetes_type2", {
+    "Type 2 Diabetes", "Endocrine",
+    {"often asymptomatic initially"},
+    {"increased thirst", "fatigue", "slow healing"},
+    {{"Metformin", "500mg", "twice daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Madhumehari", "1 tsp", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Phosphoric Acid", "30C", "twice weekly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Healthy diet", "Regular exercise", "Foot care"},
+    {"Bitter gourd", "Fenugreek", "Cinnamon"},
+    {"Obesity", "Family history", "Sedentary lifestyle"},
+    {"Fasting glucose", "HbA1c"},
+    false
+}},
+
+{"cushings", {
+    "Cushing's Syndrome", "Endocrine",
+    {"weight gain (central)", "moon face", "buffalo hump"},
+    {"thin skin", "purple striae", "muscle weakness"},
+    {{"Ketoconazole", "as prescribed", "to lower cortisol", "as needed", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Thyroidinum", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Monitor blood pressure", "Fall prevention", "Infection prevention"},
+    {"Holy basil", "Ginseng", "Omega-3s"},
+    {"Steroid use", "Pituitary tumor"},
+    {"24-hour urinary cortisol", "Dexamethasone suppression test"},
+    false
+}},
+
+{"addisons", {
+    "Addison's Disease", "Endocrine",
+    {"fatigue", "weight loss", "hyperpigmentation"},
+    {"low blood pressure", "salt craving", "dizziness"},
+    {{"Hydrocortisone", "as prescribed", "replacement", "lifelong", MedicineType::ALLOPATHY}},
+    {{"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Adrenaline", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Stress dose steroids", "Medical alert bracelet", "Regular monitoring"},
+    {"Licorice (DGL)", "Sea salt", "Vitamin C"},
+    {"Autoimmune", "Tuberculosis", "Pituitary disorders"},
+    {"ACTH stimulation test"},
+    false
+}},
+
+{"pcos", {
+    "Polycystic Ovary Syndrome", "Endocrine",
+    {"irregular periods", "excess hair growth", "acne"},
+    {"weight gain", "hair loss", "infertility"},
+    {{"Metformin", "500mg", "twice daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Ashokarishta", "20ml", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Pulsatilla", "200C", "weekly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Healthy weight", "Regular exercise", "Hair removal options"},
+    {"Cinnamon", "Spearmint tea", "Flaxseeds"},
+    {"Family history", "Obesity", "Insulin resistance"},
+    {"Hormone tests", "Ultrasound"},
+    false
+}},
+
+{"osteoporosis", {
+    "Osteoporosis", "Endocrine",
+    {"often asymptomatic until fracture"},
+    {"back pain", "height loss", "stooped posture"},
+    {{"Alendronate", "70mg", "weekly", "long-term", MedicineType::ALLOPATHY}},
+    {{"Laksha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Calcarea Phos", "6X", "three times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Weight-bearing exercise", "Calcium/vitamin D", "Fall prevention"},
+    {"Sesame seeds", "Dairy", "Leafy greens"},
+    {"Postmenopausal", "Steroid use", "Family history"},
+    {"DEXA scan"},
+    false
+}},
+
+{"pituitary_tumor", {
+    "Pituitary Tumor", "Endocrine",
+    {"headaches", "vision changes", "hormonal imbalances"},
+    {"fatigue", "nausea", "sexual dysfunction"},
+    {{"Cabergoline", "as prescribed", "for prolactinomas", "long-term", MedicineType::ALLOPATHY}},
+    {{"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Pituitary", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Regular monitoring", "Vision checks", "Hormone replacement if needed"},
+    {"Turmeric", "Ginger", "Omega-3s"},
+    {"Family history", "Genetic syndromes"},
+    {"MRI brain", "Hormone tests"},
+    false
+}},
+
+{"metabolic_syndrome", {
+    "Metabolic Syndrome", "Endocrine",
+    {"central obesity", "elevated blood pressure"},
+    {"high blood sugar", "high triglycerides", "low HDL"},
+    {{"Metformin", "500mg", "twice daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Guggulu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Calcarea Carb", "200C", "weekly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Weight loss", "Exercise", "Healthy diet"},
+    {"Cinnamon", "Fenugreek", "Green tea"},
+    {"Obesity", "Sedentary lifestyle", "Insulin resistance"},
+    {"Waist measurement", "Blood tests"},
+    false
+}},
+
+{"acne", {
+    "Acne Vulgaris", "Dermatological",
+    {"blackheads", "whiteheads", "pimples"},
+    {"cystic lesions", "redness", "scarring"},
+    {{"Benzoyl peroxide", "2.5-10%", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Neem", "as paste", "topically", "long-term", MedicineType::AYURVEDIC}},
+    {{"Hepar Sulph", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Gentle cleansing", "Non-comedogenic products", "Avoid picking"},
+    {"Tea tree oil", "Aloe vera", "Honey masks"},
+    {"Hormonal changes", "Oily skin", "Family history"},
+    {"Clinical diagnosis"},
+    false
+}},
+
+{"rosacea", {
+    "Rosacea", "Dermatological",
+    {"facial redness", "visible blood vessels", "flushing"},
+    {"bumps/pimples", "eye irritation", "thickened skin"},
+    {{"Metronidazole cream", "0.75%", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Chandan (Sandalwood)", "as paste", "topically", "long-term", MedicineType::AYURVEDIC}},
+    {{"Psorinum", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Sun protection", "Gentle skincare", "Trigger avoidance"},
+    {"Green tea", "Oatmeal masks", "Aloe vera"},
+    {"Fair skin", "Age 30-50", "Family history"},
+    {"Clinical diagnosis"},
+    false
+}},
+
+{"vitiligo", {
+    "Vitiligo", "Dermatological",
+    {"white patches on skin", "premature graying"},
+    {"symmetrical distribution", "sun sensitivity"},
+    {{"Topical corticosteroids", "as prescribed", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Bakuchi", "as oil/paste", "topically", "long-term", MedicineType::AYURVEDIC}},
+    {{"Arsenicum Sulph Flavum", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Sun protection", "Cosmetic coverings", "Support groups"},
+    {"Psoralen+sunlight", "Ginkgo biloba", "Vitamin B12"},
+    {"Autoimmune conditions", "Family history"},
+    {"Clinical diagnosis"},
+    false
+}},
+
+{"hives", {
+    "Urticaria (Hives)", "Dermatological",
+    {"itchy welts", "red raised bumps", "angioedema"},
+    {"burning/stinging", "worsening with scratching"},
+    {{"Cetirizine", "10mg", "daily", "as needed", MedicineType::ALLOPATHY}},
+    {{"Neem", "500mg", "twice daily", "acute phase", MedicineType::AYURVEDIC}},
+    {{"Apis Mellifica", "30C", "every 2 hours", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Cool compresses", "Loose clothing", "Identify triggers"},
+    {"Oatmeal baths", "Aloe vera", "Turmeric"},
+    {"Allergies", "Autoimmune conditions", "Infections"},
+    {"Clinical diagnosis"},
+    false
+}},
+
+{"melanoma", {
+    "Melanoma", "Dermatological",
+    {"changing mole", "irregular borders", "color variation"},
+    {"itching", "bleeding", "rapid growth"},
+    {{"Surgical excision", "as needed", "as needed", "as needed", MedicineType::ALLOPATHY}},
+    {{"Kanchnar Guggulu", "500mg", "twice daily", "supportive", MedicineType::AYURVEDIC}},
+    {{"Carcinosin", "200C", "weekly", "supportive", MedicineType::HOMEOPATHY}},
+    {"Sun protection", "Regular skin checks", "Avoid tanning beds"},
+    {"Green tea", "Turmeric", "Vitamin D"},
+    {"Sun exposure", "Fair skin", "Family history"},
+    {"Biopsy"},
+    false
+}},
+
+{"ringworm", {
+    "Ringworm", "Dermatological",
+    {"circular rash", "red scaly patches", "itching"},
+    {"blistering", "hair loss (scalp)", "nail thickening"},
+    {{"Clotrimazole", "1%", "twice daily", "2-4 weeks", MedicineType::ALLOPATHY}},
+    {{"Neem paste", "topically", "twice daily", "2-4 weeks", MedicineType::AYURVEDIC}},
+    {{"Sepia", "30C", "twice daily", "2-4 weeks", MedicineType::HOMEOPATHY}},
+    {"Keep dry", "Avoid sharing items", "Wash linens"},
+    {"Tea tree oil", "Turmeric paste", "Garlic"},
+    {"Humidity", "Close contact", "Weakened immunity"},
+    {"KOH prep", "Culture"},
+    true
+}},
+
+{"scabies", {
+    "Scabies", "Dermatological",
+    {"intense itching", "worse at night", "burrow tracks"},
+    {"rash", "sores from scratching", "secondary infection"},
+    {{"Permethrin", "5%", "apply overnight", "repeat in 1 week", MedicineType::ALLOPATHY}},
+    {{"Neem oil", "topically", "daily", "2 weeks", MedicineType::AYURVEDIC}},
+    {{"Sulphur", "30C", "twice daily", "2 weeks", MedicineType::HOMEOPATHY}},
+    {"Treat all contacts", "Wash bedding", "Vacuum environment"},
+    {"Tea tree oil", "Neem", "Turmeric"},
+    {"Close contact", "Crowded conditions"},
+    {"Microscopic examination"},
+    true
+}},
+
+{"lupus", {
+    "Lupus Erythematosus", "Dermatological",
+    {"butterfly rash", "photosensitivity", "joint pain"},
+    {"fatigue", "fever", "hair loss"},
+    {{"Hydroxychloroquine", "200mg", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Lycopodium", "200C", "weekly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Sun protection", "Rest", "Stress management"},
+    {"Turmeric", "Omega-3s", "Vitamin D"},
+    {"Female", "Age 15-45", "Family history"},
+    {"ANA test", "Anti-dsDNA"},
+    false
+}},
+
+{"scleroderma", {
+    "Scleroderma", "Dermatological",
+    {"skin thickening", "Raynaud's", "tight facial skin"},
+    {"joint pain", "digestive problems", "shortness of breath"},
+    {{"Methotrexate", "as prescribed", "weekly", "long-term", MedicineType::ALLOPATHY}},
+    {{"Guggulu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Thuja", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Skin moisturizing", "Warm clothing for Raynaud's", "Physical therapy"},
+    {"Aloe vera", "Coconut oil", "Turmeric"},
+    {"Female", "Age 30-50", "Family history"},
+    {"ANA test", "Skin biopsy"},
+    false
+}},
+
+{"dermatitis", {
+    "Dermatitis", "Dermatological",
+    {"redness", "itching", "dry skin"},
+    {"scaling", "blisters", "cracking"},
+    {{"Hydrocortisone", "1%", "twice daily", "short-term", MedicineType::ALLOPATHY}},
+    {{"Chandan (Sandalwood)", "as paste", "topically", "as needed", MedicineType::AYURVEDIC}},
+    {{"Graphites", "30C", "twice daily", "as needed", MedicineType::HOMEOPATHY}},
+    {"Moisturize", "Avoid irritants", "Cool compresses"},
+    {"Coconut oil", "Aloe vera", "Oatmeal baths"},
+    {"Allergies", "Irritant exposure", "Stress"},
+    {"Patch testing"},
+    false
+}},
+
+{"rheumatoid_arthritis", {
+    "Rheumatoid Arthritis", "Musculoskeletal",
+    {"joint pain", "morning stiffness", "swelling"},
+    {"fatigue", "low-grade fever", "joint deformity"},
+    {{"Methotrexate", "7.5-25mg", "weekly", "long-term", MedicineType::ALLOPATHY}},
+    {{"Shallaki", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Rhus Tox", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Joint protection", "Regular exercise", "Rest"},
+    {"Turmeric", "Ginger", "Omega-3s"},
+    {"Female", "Age 40-60", "Smoking"},
+    {"Rheumatoid factor", "Anti-CCP"},
+    false
+}},
+
+{"osteoporosis", {
+    "Osteoporosis", "Musculoskeletal",
+    {"often asymptomatic until fracture"},
+    {"back pain", "height loss", "stooped posture"},
+    {{"Alendronate", "70mg", "weekly", "long-term", MedicineType::ALLOPATHY}},
+    {{"Laksha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Calcarea Phos", "6X", "three times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Weight-bearing exercise", "Calcium/vitamin D", "Fall prevention"},
+    {"Sesame seeds", "Dairy", "Leafy greens"},
+    {"Postmenopausal", "Steroid use", "Family history"},
+    {"DEXA scan"},
+    false
+}},
+
+{"fibromyalgia", {
+    "Fibromyalgia", "Musculoskeletal",
+    {"widespread pain", "fatigue", "tender points"},
+    {"sleep disturbances", "cognitive difficulties", "headaches"},
+    {{"Duloxetine", "30-60mg", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Rhus Tox", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Gentle exercise", "Stress management", "Sleep hygiene"},
+    {"Magnesium", "Turmeric", "Acupuncture"},
+    {"Female", "Age 30-50", "Family history"},
+    {"Clinical diagnosis"},
+    false
+}},
+
+{"gout", {
+    "Gout", "Musculoskeletal",
+    {"sudden severe joint pain", "redness", "swelling"},
+    {"warmth", "limited mobility", "tenderness"},
+    {{"Colchicine", "0.6mg", "every hour", "until relief or diarrhea", MedicineType::ALLOPATHY},
+     {"Allopurinol", "100-300mg", "daily", "long-term prevention", MedicineType::ALLOPATHY}},
+    {{"Guggulu", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Benzoic Acid", "30C", "3 times daily", "during attack", MedicineType::HOMEOPATHY}},
+    {"Low-purine diet", "Hydration", "Limit alcohol"},
+    {"Cherry juice", "Apple cider vinegar", "Ginger tea"},
+    {"High purine diet", "Alcohol use", "Obesity"},
+    {"Uric acid level", "Joint fluid analysis"},
+    false
+}},
+
+{"bursitis", {
+    "Bursitis", "Musculoskeletal",
+    {"joint pain", "swelling", "tenderness"},
+    {"stiffness", "redness", "warmth"},
+    {{"Ibuprofen", "400mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY}},
+    {{"Nirgundi oil", "topically", "twice daily", "until resolved", MedicineType::AYURVEDIC}},
+    {{"Bryonia", "30C", "3 times daily", "until resolved", MedicineType::HOMEOPATHY}},
+    {"Rest", "Ice", "Compression"},
+    {"Turmeric paste", "Ginger compresses", "Epsom salt baths"},
+    {"Repetitive motions", "Trauma", "Infection"},
+    {"Clinical exam", "Ultrasound"},
+    false
+}},
+
+{"tendinitis", {
+    "Tendinitis", "Musculoskeletal",
+    {"pain near joint", "tenderness", "mild swelling"},
+    {"stiffness", "worsening with movement"},
+    {{"Naproxen", "500mg", "twice daily", "1-2 weeks", MedicineType::ALLOPATHY}},
+    {{"Punarnava", "500mg", "twice daily", "2 weeks", MedicineType::AYURVEDIC}},
+    {{"Ruta", "30C", "3 times daily", "2 weeks", MedicineType::HOMEOPATHY}},
+    {"Rest", "Ice", "Gradual return to activity"},
+    {"Arnica gel", "Turmeric", "Ginger compresses"},
+    {"Repetitive motions", "Improper technique", "Age"},
+    {"Clinical exam", "Ultrasound"},
+    false
+}},
+
+{"scoliosis", {
+    "Scoliosis", "Musculoskeletal",
+    {"uneven shoulders", "one hip higher", "rib hump"},
+    {"back pain", "fatigue", "breathing difficulty if severe"},
+    {{"Bracing", "as prescribed", "for moderate curves", "until skeletal maturity", MedicineType::ALLOPATHY}},
+    {{"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Calcarea Phos", "6X", "three times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Physical therapy", "Core strengthening", "Regular monitoring"},
+    {"Yoga", "Calcium-rich foods", "Vitamin D"},
+    {"Adolescent growth spurt", "Family history"},
+    {"X-rays", "Cobb angle measurement"},
+    false
+}},
+
+{"osteomyelitis", {
+    "Osteomyelitis", "Musculoskeletal",
+    {"bone pain", "fever", "swelling"},
+    {"fatigue", "limited movement", "drainage if chronic"},
+    {{"Vancomycin", "as prescribed", "IV", "4-6 weeks", MedicineType::ALLOPATHY}},
+    {{"Guduchi", "500mg", "twice daily", "recovery phase", MedicineType::AYURVEDIC}},
+    {{"Hepar Sulph", "30C", "3 times daily", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Complete antibiotics", "Wound care", "Nutrition support"},
+    {"Turmeric", "Garlic", "Echinacea"},
+    {"Open fractures", "Diabetes", "Peripheral vascular disease"},
+    {"MRI", "Bone biopsy"},
+    false
+}},
+
+{"carpal_tunnel", {
+    "Carpal Tunnel Syndrome", "Musculoskeletal",
+    {"hand numbness", "tingling", "weak grip"},
+    {"nighttime symptoms", "pain radiating up arm", "dropping objects"},
+    {{"Wrist splint", "as needed", "especially at night", "long-term", MedicineType::ALLOPATHY},
+     {"Ibuprofen", "400mg", "as needed", "as needed", MedicineType::ALLOPATHY}},
+    {{"Nirgundi oil", "topically", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Hypericum", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Ergonomic adjustments", "Wrist exercises", "Activity modification"},
+    {"Turmeric", "Ginger compresses", "Omega-3s"},
+    {"Repetitive motions", "Diabetes", "Pregnancy"},
+    {"Nerve conduction studies"},
+    false
+}},
+
+{"herniated_disc", {
+    "Herniated Disc", "Musculoskeletal",
+    {"back pain", "radiating leg pain", "numbness"},
+    {"muscle weakness", "worsening with movement", "tingling"},
+    {{"Ibuprofen", "400-600mg", "every 6 hours", "as needed", MedicineType::ALLOPATHY}},
+    {{"Shallaki", "500mg", "twice daily", "4-6 weeks", MedicineType::AYURVEDIC}},
+    {{"Hypericum", "30C", "3 times daily", "4-6 weeks", MedicineType::HOMEOPATHY}},
+    {"Proper lifting", "Core strengthening", "Posture awareness"},
+    {"Turmeric", "Ginger", "Yoga"},
+    {"Heavy lifting", "Obesity", "Sedentary lifestyle"},
+    {"MRI", "CT scan"},
+    false
+}},
+
+{"anemia", {
+    "Anemia", "Hematological",
+    {"fatigue", "pale skin", "weakness"},
+    {"shortness of breath", "dizziness", "cold hands/feet"},
+    {{"Iron sulfate", "325mg", "daily", "3-6 months", MedicineType::ALLOPATHY}},
+    {{"Loha Bhasma", "125mg", "twice daily", "3-6 months", MedicineType::AYURVEDIC}},
+    {{"Ferrum Phos", "6X", "three times daily", "3-6 months", MedicineType::HOMEOPATHY}},
+    {"Iron-rich diet", "Vitamin C with iron", "Treat underlying cause"},
+    {"Beetroot", "Pomegranate", "Dates"},
+    {"Menstruating women", "Poor diet", "Chronic disease"},
+    {"CBC", "Iron studies"},
+    false
+}},
+
+{"hemophilia", {
+    "Hemophilia", "Hematological",
+    {"prolonged bleeding", "easy bruising", "joint bleeding"},
+    {"spontaneous bleeding", "blood in urine/stool"},
+    {{"Factor replacement", "as prescribed", "as needed", "lifelong", MedicineType::ALLOPATHY}},
+    {{"Ashoka", "500mg", "twice daily", "supportive", MedicineType::AYURVEDIC}},
+    {{"Phosphorus", "30C", "as needed", "for bleeding", MedicineType::HOMEOPATHY}},
+    {"Avoid trauma", "Regular factor prophylaxis", "Dental precautions"},
+    {"Vitamin K-rich foods", "Iron-rich diet if anemic"},
+    {"Family history", "Male gender"},
+    {"Factor assays"},
+    false
+}},
+
+{"leukemia", {
+    "Leukemia", "Hematological",
+    {"fatigue", "fever", "frequent infections"},
+    {"pale skin", "easy bruising", "weight loss"},
+    {{"Chemotherapy", "as prescribed", "per protocol", "per protocol", MedicineType::ALLOPATHY}},
+    {{"Kanchnar Guggulu", "500mg", "twice daily", "supportive", MedicineType::AYURVEDIC}},
+    {{"Carcinosin", "200C", "weekly", "supportive", MedicineType::HOMEOPATHY}},
+    {"Infection prevention", "Nutrition support", "Blood product support"},
+    {"Turmeric", "Green tea", "Meditation"},
+    {"Radiation exposure", "Chemical exposure", "Genetic syndromes"},
+    {"CBC", "Bone marrow biopsy"},
+    false
+}},
+
+{"lymphoma", {
+    "Lymphoma", "Hematological",
+    {"swollen lymph nodes", "fatigue", "fever"},
+    {"night sweats", "weight loss", "itching"},
+    {{"Chemotherapy", "as prescribed", "per protocol", "per protocol", MedicineType::ALLOPATHY}},
+    {{"Kanchnar Guggulu", "500mg", "twice daily", "supportive", MedicineType::AYURVEDIC}},
+    {{"Scirrhinum", "200C", "weekly", "supportive", MedicineType::HOMEOPATHY}},
+    {"Infection prevention", "Nutrition support", "Rest"},
+    {"Turmeric", "Green tea", "Mushroom extracts"},
+    {"Immunosuppression", "EBV infection", "Family history"},
+    {"Biopsy", "CT scans"},
+    false
+}},
+
+{"sickle_cell", {
+    "Sickle Cell Disease", "Hematological",
+    {"pain crises", "fatigue", "jaundice"},
+    {"swollen hands/feet", "frequent infections", "vision problems"},
+    {{"Hydroxyurea", "as prescribed", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Punarnava", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"China", "30C", "3 times daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Hydration", "Infection prevention", "Avoid extreme temperatures"},
+    {"Folic acid", "Omega-3s", "Turmeric"},
+    {"African descent", "Family history"},
+    {"Hemoglobin electrophoresis"},
+    false
+}},
+
+{"kidney_stones", {
+    "Kidney Stones", "Genitourinary",
+    {"severe flank pain", "blood in urine", "nausea"},
+    {"urinary urgency", "fever if infected", "vomiting"},
+    {{"Tamsulosin", "0.4mg", "daily", "until stone passes", MedicineType::ALLOPATHY}},
+    {{"Punarnava", "500mg", "twice daily", "until stone passes", MedicineType::AYURVEDIC}},
+    {{"Berberis Vulgaris", "30C", "every 2 hours", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Hydration", "Pain control", "Strain urine"},
+    {"Lemon water", "Basil tea", "Dandelion root"},
+    {"Dehydration", "High oxalate diet", "Family history"},
+    {"CT scan", "Urinalysis"},
+    false
+}},
+
+{"uti", {
+    "Urinary Tract Infection", "Genitourinary",
+    {"painful urination", "urgency", "frequency"},
+    {"lower abdominal pain", "blood in urine", "fever"},
+    {{"Nitrofurantoin", "100mg", "twice daily", "5 days", MedicineType::ALLOPATHY}},
+    {{"Gokshura", "500mg", "twice daily", "7 days", MedicineType::AYURVEDIC}},
+    {{"Cantharis", "30C", "every 2 hours", "acute phase", MedicineType::HOMEOPATHY}},
+    {"Hydration", "Urinate after intercourse", "Wipe front to back"},
+    {"Cranberry juice", "D-mannose", "Probiotics"},
+    {"Female anatomy", "Sexual activity", "Catheter use"},
+    {"Urinalysis", "Culture"},
+    false
+}},
+
+{"benign_prostatic", {
+    "Benign Prostatic Hyperplasia", "Genitourinary",
+    {"frequent urination", "weak stream", "nocturia"},
+    {"urgency", "incomplete emptying", "dribbling"},
+    {{"Tamsulosin", "0.4mg", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Gokshura", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Sabal Serrulata", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Limit fluids at night", "Avoid decongestants", "Double voiding"},
+    {"Saw palmetto", "Pumpkin seeds", "Lycium"},
+    {"Age", "Family history"},
+    {"PSA test", "Ultrasound"},
+    false
+}},
+
+{"endometriosis", {
+    "Endometriosis", "Genitourinary",
+    {"painful periods", "chronic pelvic pain", "pain with intercourse"},
+    {"infertility", "heavy bleeding", "fatigue"},
+    {{"NSAIDs", "as needed", "for pain", "as needed", MedicineType::ALLOPATHY}},
+    {{"Ashokarishta", "20ml", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Sepia", "200C", "weekly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Heat application", "Regular exercise", "Stress management"},
+    {"Turmeric", "Ginger tea", "Omega-3s"},
+    {"Family history", "Early menarche", "Short cycles"},
+    {"Laparoscopy"},
+    false
+}},
+
+{"pcos", {
+    "Polycystic Ovary Syndrome", "Genitourinary",
+    {"irregular periods", "excess hair growth", "acne"},
+    {"weight gain", "hair loss", "infertility"},
+    {{"Metformin", "500mg", "twice daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Ashokarishta", "20ml", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Pulsatilla", "200C", "weekly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Healthy weight", "Regular exercise", "Hair removal options"},
+    {"Cinnamon", "Spearmint tea", "Flaxseeds"},
+    {"Family history", "Obesity", "Insulin resistance"},
+    {"Hormone tests", "Ultrasound"},
+    false
+}},
+
+{"anxiety", {
+    "Anxiety Disorder", "Mental Health",
+    {"excessive worry", "restlessness", "difficulty concentrating"},
+    {"irritability", "muscle tension", "sleep disturbances"},
+    {{"Sertraline", "50mg", "daily", "6+ months", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Argentum Nitricum", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Cognitive behavioral therapy", "Regular exercise", "Limit caffeine"},
+    {"Chamomile tea", "Lavender", "Omega-3s"},
+    {"Family history", "Trauma", "Stress"},
+    {"Clinical evaluation"},
+    false
+}},
+
+{"depression", {
+    "Depression", "Mental Health",
+    {"persistent sadness", "loss of interest", "fatigue"},
+    {"sleep disturbances", "appetite changes", "concentration issues"},
+    {{"Sertraline", "50mg", "daily", "6+ months", MedicineType::ALLOPATHY},
+     {"Escitalopram", "10mg", "daily", "6+ months", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC},
+     {"Ashwagandha", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Aurum Met", "200C", "weekly", "as needed", MedicineType::HOMEOPATHY},
+     {"Natrum Mur", "200C", "weekly", "as needed", MedicineType::HOMEOPATHY}},
+    {"Regular routine", "Social connection", "Therapy"},
+    {"Meditation", "Yoga", "Omega-3 rich foods"},
+    {"Family history", "Trauma", "Chronic illness"},
+    {"Clinical evaluation", "PHQ-9 questionnaire"},
+    false
+}},
+
+{"bipolar", {
+    "Bipolar Disorder", "Mental Health",
+    {"episodes of mania/depression", "risk-taking behavior"},
+    {"grandiosity", "decreased need for sleep", "racing thoughts"},
+    {{"Lithium", "as prescribed", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Lachesis", "200C", "weekly", "long-term", MedicineType::HOMEOPATHY}},
+    {"Regular sleep", "Mood tracking", "Avoid substances"},
+    {"Omega-3s", "Magnesium", "Meditation"},
+    {"Family history", "Stress", "Substance abuse"},
+    {"Clinical evaluation"},
+    false
+}},
+
+{"schizophrenia", {
+    "Schizophrenia", "Mental Health",
+    {"hallucinations", "delusions", "disorganized speech"},
+    {"social withdrawal", "flat affect", "cognitive difficulties"},
+    {{"Risperidone", "as prescribed", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Hyoscyamus", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Medication adherence", "Social support", "Routine"},
+    {"Omega-3s", "Ginkgo biloba", "Meditation"},
+    {"Family history", "Cannabis use", "Urban upbringing"},
+    {"Clinical evaluation"},
+    false
+}},
+
+{"ocd", {
+    "Obsessive-Compulsive Disorder", "Mental Health",
+    {"unwanted thoughts", "repetitive behaviors", "anxiety"},
+    {"time-consuming rituals", "distress if prevented"},
+    {{"Fluoxetine", "20mg", "daily", "long-term", MedicineType::ALLOPATHY}},
+    {{"Brahmi", "500mg", "twice daily", "long-term", MedicineType::AYURVEDIC}},
+    {{"Arsenicum Album", "30C", "twice daily", "long-term", MedicineType::HOMEOPATHY}},
+    {"Cognitive behavioral therapy", "Exposure therapy", "Stress management"},
+    {"Inositol", "St. John's Wort", "Chamomile"},
+    {"Family history", "Trauma", "Streptococcal infection"},
+    {"Clinical evaluation"},
+    false
+}}
+
+};
+
+string toLower(const string& str) {
+    string lowerStr = str;
+    transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), 
+              [](unsigned char c){ return tolower(c); });
+    return lowerStr;
+}
+
+vector<string> splitString(const string& input, char delimiter) {
+    vector<string> tokens;
+    string token;
+    istringstream tokenStream(input);
+    while (getline(tokenStream, token, delimiter)) {
+        if (!token.empty()) {
+            tokens.push_back(token);
+        }
+    }
+    return tokens;
+}
+
+bool getYesNoResponse(const string& question) {
+    while (true) {
+        cout << question << " (yes/no): ";
+        string response;
+        getline(cin, response);
+        
+        response = toLower(response);
+        if (response == "yes" || response == "y") {
+            return true;
+        } else if (response == "no" || response == "n") {
+            return false;
+        }
+        cout << "Please answer with 'yes' or 'no'.\n";
+    }
+}
+
+int getNumericResponse(const string& prompt, int min, int max) {
+    int value;
+    while (true) {
+        cout << prompt;
+        string input;
+        getline(cin, input);
+        
+        try {
+            value = stoi(input);
+            if (value >= min && value <= max) {
+                return value;
+            }
+            cout << "Please enter a number between " << min << " and " << max << ".\n";
+        } catch (...) {
+            cout << "Please enter a valid number.\n";
+        }
+    }
+}
+
+MedicineType getMedicinePreference() {
+    cout << "\nPlease choose your preferred medicine type:\n";
+    cout << "1. Allopathy (Modern Medicine)\n";
+    cout << "2. Ayurvedic (Traditional Indian Medicine)\n";
+    cout << "3. Homeopathy\n";
+    
+    int choice = getNumericResponse("Enter your choice (1-3): ", 1, 3);
+    
+    switch(choice) {
+        case 1: return MedicineType::ALLOPATHY;
+        case 2: return MedicineType::AYURVEDIC;
+        case 3: return MedicineType::HOMEOPATHY;
+        default: return MedicineType::ALLOPATHY;
+    }
+}
+
+PatientInfo gatherPatientInformation() {
+    PatientInfo info;
+    
+    cout << "\n=== Patient Information ===\n";
+    cout << "To provide the best advice, I need some basic information.\n";
+    
+    cout << "What is your name? ";
+    getline(cin, info.name);
+    
+    info.age = getNumericResponse("What is your age? ", 0, 120);
+    
+    cout << "What is your gender (M/F/O)? ";
+    string gender;
+    getline(cin, gender);
+    info.gender = !gender.empty() ? toupper(gender[0]) : 'O';
+    
+    cout << "Do you have any existing medical conditions? ";
+    string conditions;
+    getline(cin, conditions);
+    info.existingConditions = splitString(conditions, ',');
+    
+    cout << "Are you currently taking any medications? ";
+    string meds;
+    getline(cin, meds);
+    info.currentMedications = splitString(meds, ',');
+    
+    cout << "Do you have any known allergies? ";
+    string allergies;
+    getline(cin, allergies);
+    info.allergies = splitString(allergies, ',');
+    
+    info.preferredMedicine = getMedicinePreference();
+    
+    return info;
+}
+
+vector<Symptom> gatherSymptoms() {
+    vector<Symptom> symptoms;
+    
+    cout << "\n=== Symptom Assessment ===\n";
+    cout << "Please describe your symptoms in detail.\n";
+    cout << "For example: 'I have had a severe headache for 12 hours and mild nausea'\n";
+    cout << "Your description: ";
+    
+    string description;
+    getline(cin, description);
+    
+    vector<string> symptomKeywords = {
+        "headache", "fever", "cough", "sore throat", "runny nose",
+        "nausea", "vomiting", "diarrhea", "rash", "fatigue",
+        "body aches", "chills", "sneezing", "itchy eyes", "stomach pain",
+        "shortness of breath", "dizziness", "chest pain", "swelling",
+        "jaundice", "joint pain", "stiffness", "loss of appetite",
+        "weight loss", "rapid heartbeat", "nervousness", "sweating",
+        "tremors", "heat intolerance", "persistent sadness", "loss of interest",
+        "sleep disturbances", "blurred vision", "slow healing", "frequent urination",
+        "increased thirst", "hunger", "night sweats", "blood in sputum",
+        "confusion", "dark urine", "abdominal pain", "phlegm"
+    };
+    
+    for (const string& keyword : symptomKeywords) {
+        if (toLower(description).find(toLower(keyword)) != string::npos) {
+            Symptom symptom;
+            symptom.name = keyword;
+            
+            if (toLower(description).find("severe") != string::npos) {
+                symptom.severity = Severity::SEVERE;
+            } else if (toLower(description).find("moderate") != string::npos) {
+                symptom.severity = Severity::MODERATE;
+            } else {
+                symptom.severity = Severity::MILD;
+            }
+            
+            if (toLower(description).find("hour") == string::npos &&
+                toLower(description).find("day") == string::npos &&
+                toLower(description).find("week") == string::npos) {
+                symptom.durationHours = getNumericResponse(
+                    "How many hours have you had " + keyword + "? ", 0, 720);
+            } else {
+                symptom.durationHours = 24;
+            }
+            
+            symptoms.push_back(symptom);
+        }
+    }
+    
+    return symptoms;
+}
+
+void askFollowUpQuestions(const vector<Symptom>& symptoms, PatientInfo& patient) {
+    cout << "\n=== Follow-up Questions ===\n";
+    
+    for (const Symptom& symptom : symptoms) {
+        if (symptom.name == "fever") {
+            if (getYesNoResponse("Have you measured your temperature? If yes, was it above 101°F (38.3°C)?")) {
+            }
+        }
+        
+        if (symptom.name == "chest pain") {
+            if (getYesNoResponse("Does the chest pain radiate to your arm or jaw?")) {
+                cout << "WARNING: This could indicate a heart attack. Please seek emergency care immediately.\n";
+            }
+        }
+        
+        if (symptom.name == "shortness of breath") {
+            if (getYesNoResponse("Is the shortness of breath worse when lying down?")) {
+            }
+        }
+        
+        if (symptom.name == "jaundice") {
+            if (getYesNoResponse("Have you noticed dark urine or pale stools?")) {
+            }
+        }
+    }
+    
+    bool hasRedFlag = any_of(symptoms.begin(), symptoms.end(), [](const Symptom& s) {
+        return (s.name == "chest pain" && s.severity == Severity::SEVERE) ||
+               (s.name == "difficulty breathing") ||
+               (s.name == "severe headache" && s.durationHours < 24) ||
+               (s.name == "confusion") ||
+               (s.name == "blood in sputum");
+    });
+    
+    if (hasRedFlag) {
+        cout << "\nWARNING: You're describing symptoms that may require immediate medical attention.\n";
+        cout << "I strongly recommend you seek emergency care or call your local emergency number.\n";
+    }
+}
+
+vector<pair<Disease, int>> assessConditions(const vector<Symptom>& symptoms, const PatientInfo& patient) {
+    vector<pair<Disease, int>> possibleConditions;
+    
+    for (const auto& diseasePair : diseaseDatabase) {
+        const Disease& disease = diseasePair.second;
+        int matchScore = 0;
+        
+        for (const string& primarySymptom : disease.primarySymptoms) {
+            auto it = find_if(symptoms.begin(), symptoms.end(), 
+                [&primarySymptom](const Symptom& s) { 
+                    return s.name == primarySymptom; 
+                });
+            if (it != symptoms.end()) {
+                matchScore += 3;
+            }
+        }
+        
+        for (const string& secondarySymptom : disease.secondarySymptoms) {
+            auto it = find_if(symptoms.begin(), symptoms.end(), 
+                [&secondarySymptom](const Symptom& s) { 
+                    return s.name == secondarySymptom; 
+                });
+            if (it != symptoms.end()) {
+                matchScore += 1;
+            }
+        }
+        
+        for (const string& riskFactor : disease.riskFactors) {
+            if (find(patient.existingConditions.begin(), 
+                    patient.existingConditions.end(), riskFactor) != patient.existingConditions.end()) {
+                matchScore += 2;
+            }
+        }
+        
+        if (matchScore >= 3) { 
+            possibleConditions.emplace_back(disease, matchScore);
+        }
+    }
+    
+    sort(possibleConditions.begin(), possibleConditions.end(),
+        [](const pair<Disease, int>& a, const pair<Disease, int>& b) {
+            return a.second > b.second;
+        });
+    
+    return possibleConditions;
+}
+
+void displayCondition(const Disease& disease, int rank, MedicineType preferredMedicine) {
+    cout << "\n" << rank << ". " << disease.name << " (" << disease.category << ")\n";
+    
+    cout << "\nPrimary Symptoms:\n";
+    for (const string& symptom : disease.primarySymptoms) {
+        cout << "- " << symptom << "\n";
+    }
+    
+    if (!disease.secondarySymptoms.empty()) {
+        cout << "\nSecondary Symptoms:\n";
+        for (const string& symptom : disease.secondarySymptoms) {
+            cout << "- " << symptom << "\n";
+        }
+    }
+    
+    cout << "\nRecommended Treatments (" << 
+        (preferredMedicine == MedicineType::ALLOPATHY ? "Allopathy" : 
+         preferredMedicine == MedicineType::AYURVEDIC ? "Ayurvedic" : "Homeopathy") << "):\n";
+    
+    vector<Medication> treatments;
+    switch(preferredMedicine) {
+        case MedicineType::ALLOPATHY: treatments = disease.allopathyTreatments; break;
+        case MedicineType::AYURVEDIC: treatments = disease.ayurvedicTreatments; break;
+        case MedicineType::HOMEOPATHY: treatments = disease.homeopathyTreatments; break;
+    }
+    
+    for (const Medication& med : treatments) {
+        cout << "- " << med.name << ": " << med.dosage << " " 
+             << med.frequency << " for " << med.duration << "\n";
+    }
+    
+    if (!disease.homeRemedies.empty()) {
+        cout << "\nHome Remedies:\n";
+        for (const string& remedy : disease.homeRemedies) {
+            cout << "- " << remedy << "\n";
+        }
+    }
+    
+    cout << "\nPrecautions:\n";
+    for (const string& precaution : disease.precautions) {
+        cout << "- " << precaution << "\n";
+    }
+    
+    if (!disease.diagnosticTests.empty()) {
+        cout << "\nDiagnostic Tests to Confirm:\n";
+        for (const string& test : disease.diagnosticTests) {
+            cout << "- " << test << "\n";
+        }
+    }
+    
+    cout << "\nContagious: " << (disease.contagious ? "Yes" : "No") << "\n";
+}
+
+void provideGeneralAdvice(const vector<Symptom>& symptoms) {
+    cout << "\n=== General Health Advice ===\n";
+    
+    if (any_of(symptoms.begin(), symptoms.end(), 
+              [](const Symptom& s) { return s.name == "fever"; })) {
+        cout << "- For fever: Stay hydrated with water, clear broths, or oral rehydration solutions.\n";
+        cout << "- Rest as much as possible to help your body fight the infection.\n";
+        cout << "- Use fever reducers like acetaminophen or ibuprofen as directed.\n";
+    }
+    
+    if (any_of(symptoms.begin(), symptoms.end(), 
+              [](const Symptom& s) { return s.name == "cough"; })) {
+        cout << "- For cough: Try honey (for adults and children over 1 year), warm liquids, or cough drops.\n";
+        cout << "- Use a humidifier to moisten the air and soothe irritated airways.\n";
+    }
+    
+    if (any_of(symptoms.begin(), symptoms.end(), 
+              [](const Symptom& s) { return s.name == "diarrhea"; })) {
+        cout << "- For diarrhea: Drink plenty of fluids to prevent dehydration.\n";
+        cout << "- Eat bland foods like bananas, rice, applesauce, and toast (BRAT diet).\n";
+        cout << "- Avoid dairy, fatty foods, and caffeine until symptoms improve.\n";
+    }
+    
+    cout << "\nWhen to Seek Medical Attention:\n";
+    cout << "- Difficulty breathing or shortness of breath\n";
+    cout << "- Persistent pain or pressure in the chest\n";
+    cout << "- New confusion or inability to arouse\n";
+    cout << "- Bluish lips or face\n";
+    cout << "- Severe, persistent symptoms that don't improve with self-care\n";
+}
+
+void generateReport(const PatientInfo& patient, const vector<Symptom>& symptoms, 
+                   const vector<pair<Disease, int>>& possibleConditions) {
+    time_t now = time(nullptr);
+    tm* localTime = localtime(&now);
+    
+    string filename = "medical_report_" + patient.name + ".txt";
+    for (char &c : filename) {
+        if (c == ' ') c = '_';
+    }
+    
+    ofstream reportFile(filename);
+    
+    reportFile << "=== COMPREHENSIVE MEDICAL ASSESSMENT REPORT ===\n";
+    reportFile << "Generated on: " << put_time(localTime, "%Y-%m-%d %H:%M") << "\n\n";
+    
+    reportFile << "=== PATIENT INFORMATION ===\n";
+    reportFile << "Name: " << patient.name << "\n";
+    reportFile << "Age: " << patient.age << "\n";
+    reportFile << "Gender: " << patient.gender << "\n";
+    reportFile << "Preferred Medicine Type: ";
+    switch(patient.preferredMedicine) {
+        case MedicineType::ALLOPATHY: reportFile << "Allopathy (Modern Medicine)\n"; break;
+        case MedicineType::AYURVEDIC: reportFile << "Ayurvedic (Traditional Indian Medicine)\n"; break;
+        case MedicineType::HOMEOPATHY: reportFile << "Homeopathy\n"; break;
+    }
+    
+    reportFile << "\nExisting Medical Conditions:\n";
+    if (patient.existingConditions.empty()) {
+        reportFile << "None reported\n";
+    } else {
+        for (const string& condition : patient.existingConditions) {
+            reportFile << "- " << condition << "\n";
+        }
+    }
+    
+    reportFile << "\nCurrent Medications:\n";
+    if (patient.currentMedications.empty()) {
+        reportFile << "None reported\n";
+    } else {
+        for (const string& med : patient.currentMedications) {
+            reportFile << "- " << med << "\n";
+        }
+    }
+    
+    reportFile << "\nKnown Allergies:\n";
+    if (patient.allergies.empty()) {
+        reportFile << "None reported\n";
+    } else {
+        for (const string& allergy : patient.allergies) {
+            reportFile << "- " << allergy << "\n";
+        }
+    }
+    
+    reportFile << "\n=== SYMPTOMS REPORTED ===\n";
+    for (const Symptom& symptom : symptoms) {
+        reportFile << "- " << symptom.name << " (";
+        switch (symptom.severity) {
+            case Severity::MILD: reportFile << "Mild"; break;
+            case Severity::MODERATE: reportFile << "Moderate"; break;
+            case Severity::SEVERE: reportFile << "Severe"; break;
+        }
+        reportFile << ", Duration: " << symptom.durationHours << " hours)\n";
+    }
+    
+    if (!possibleConditions.empty()) {
+        reportFile << "\n=== POSSIBLE CONDITIONS (BY LIKELIHOOD) ===\n";
+        for (size_t i = 0; i < possibleConditions.size(); ++i) {
+            const Disease& disease = possibleConditions[i].first;
+            reportFile << "\n" << i+1 << ". " << disease.name << " (" << disease.category << ")\n";
+            reportFile << "Match Score: " << possibleConditions[i].second << "/10\n";
+            
+            reportFile << "\nPrimary Symptoms:\n";
+            for (const string& symptom : disease.primarySymptoms) {
+                reportFile << "- " << symptom << "\n";
+            }
+            
+            if (!disease.secondarySymptoms.empty()) {
+                reportFile << "\nSecondary Symptoms:\n";
+                for (const string& symptom : disease.secondarySymptoms) {
+                    reportFile << "- " << symptom << "\n";
+                }
+            }
+            
+            reportFile << "\nRecommended Treatments (" << 
+                (patient.preferredMedicine == MedicineType::ALLOPATHY ? "Allopathy" : 
+                 patient.preferredMedicine == MedicineType::AYURVEDIC ? "Ayurvedic" : "Homeopathy") << "):\n";
+            
+            vector<Medication> treatments;
+            switch(patient.preferredMedicine) {
+                case MedicineType::ALLOPATHY: treatments = disease.allopathyTreatments; break;
+                case MedicineType::AYURVEDIC: treatments = disease.ayurvedicTreatments; break;
+                case MedicineType::HOMEOPATHY: treatments = disease.homeopathyTreatments; break;
+            }
+            
+            for (const Medication& med : treatments) {
+                reportFile << "- " << med.name << ": " << med.dosage << " " 
+                         << med.frequency << " for " << med.duration << "\n";
+            }
+
+            reportFile << "\nAlternative Treatment Options:\n";
+            
+            if (patient.preferredMedicine != MedicineType::ALLOPATHY && !disease.allopathyTreatments.empty()) {
+                reportFile << "Allopathy Options:\n";
+                for (const Medication& med : disease.allopathyTreatments) {
+                    reportFile << "- " << med.name << ": " << med.dosage << " " 
+                             << med.frequency << " for " << med.duration << "\n";
+                }
+            }
+            
+            if (patient.preferredMedicine != MedicineType::AYURVEDIC && !disease.ayurvedicTreatments.empty()) {
+                reportFile << "Ayurvedic Options:\n";
+                for (const Medication& med : disease.ayurvedicTreatments) {
+                    reportFile << "- " << med.name << ": " << med.dosage << " " 
+                             << med.frequency << " for " << med.duration << "\n";
+                }
+            }
+            
+            if (patient.preferredMedicine != MedicineType::HOMEOPATHY && !disease.homeopathyTreatments.empty()) {
+                reportFile << "Homeopathy Options:\n";
+                for (const Medication& med : disease.homeopathyTreatments) {
+                    reportFile << "- " << med.name << ": " << med.dosage << " " 
+                             << med.frequency << " for " << med.duration << "\n";
+                }
+            }
+            
+            if (!disease.homeRemedies.empty()) {
+                reportFile << "\nHome Remedies:\n";
+                for (const string& remedy : disease.homeRemedies) {
+                    reportFile << "- " << remedy << "\n";
+                }
+            }
+            
+            reportFile << "\nPrecautions:\n";
+            for (const string& precaution : disease.precautions) {
+                reportFile << "- " << precaution << "\n";
+            }
+            
+            if (!disease.diagnosticTests.empty()) {
+                reportFile << "\nDiagnostic Tests to Confirm:\n";
+                for (const string& test : disease.diagnosticTests) {
+                    reportFile << "- " << test << "\n";
+                }
+            }
+            
+            reportFile << "\nContagious: " << (disease.contagious ? "Yes" : "No") << "\n";
+            reportFile << "Risk Factors: ";
+            for (const string& risk : disease.riskFactors) {
+                reportFile << risk << ", ";
+            }
+            reportFile << "\n";
+        }
+    } else {
+        reportFile << "\nNo specific conditions identified based on reported symptoms.\n";
+    }
+    
+    reportFile << "\n=== GENERAL HEALTH ADVICE ===\n";
+    reportFile << "- Maintain proper hydration with water and electrolyte solutions\n";
+    reportFile << "- Get adequate rest to support your immune system\n";
+    reportFile << "- Wash hands frequently to prevent infection spread\n";
+    reportFile << "- Monitor symptoms and seek medical attention if they worsen\n";
+    
+    reportFile << "\nEMERGENCY WARNING SIGNS (Seek immediate medical care for):\n";
+    reportFile << "- Difficulty breathing or shortness of breath\n";
+    reportFile << "- Persistent chest pain or pressure\n";
+    reportFile << "- New confusion or inability to stay awake\n";
+    reportFile << "- Bluish lips or face\n";
+    reportFile << "- Severe, unrelenting pain\n";
+    
+    reportFile << "\n=== DISCLAIMER ===\n";
+    reportFile << "This report is generated by an automated system and is not a substitute\n";
+    reportFile << "for professional medical advice, diagnosis, or treatment. Always seek\n";
+    reportFile << "the advice of your physician or other qualified health provider with\n";
+    reportFile << "any questions you may have regarding a medical condition. Never disregard\n";
+    reportFile << "professional medical advice or delay seeking it because of information\n";
+    reportFile << "in this report.\n";
+    
+    reportFile << "\nReport generated by: Advanced Medical Diagnosis Assistant\n";
+    
+    reportFile.close();
+    cout << "\nA detailed report has been saved to '" << filename << "'\n";
+}
+
+void conductAssessment() {
+    PatientInfo patient = gatherPatientInformation();
+    vector<Symptom> symptoms = gatherSymptoms();
+    askFollowUpQuestions(symptoms, patient);
+    
+    vector<pair<Disease, int>> possibleConditions = assessConditions(symptoms, patient);
+    
+    cout << "\n=== Assessment Results ===\n";
+    if (!possibleConditions.empty()) {
+        cout << "Based on your symptoms, here are possible conditions:\n";
+        for (size_t i = 0; i < min(possibleConditions.size(), size_t(3)); ++i) {
+            displayCondition(possibleConditions[i].first, i+1, patient.preferredMedicine);
+        }
+    } else {
+        cout << "No specific conditions identified based on your symptoms.\n";
+        provideGeneralAdvice(symptoms);
+    }
+    
+    generateReport(patient, symptoms, possibleConditions);
+    
+    cout << "\nRemember:\n";
+    cout << "- This is not a substitute for professional medical advice\n";
+    cout << "- If symptoms are severe or worsening, seek medical attention\n";
+    cout << "- For emergencies, call your local emergency number immediately\n";
+}
+
+int main() {
+    cout << "=== Advanced Medical Diagnosis Assistant ===\n";
+    cout << "This tool helps assess possible medical conditions based on symptoms.\n";
+    cout << "It provides treatment options in Allopathy, Ayurveda, and Homeopathy.\n";
+    cout << "NOTE: This does NOT replace professional medical evaluation.\n\n";
+    
+    bool continueAssessments = true;
+    while (continueAssessments) {
+        conductAssessment();
+        continueAssessments = getYesNoResponse("\nWould you like to perform another assessment?");
+    }
+    
+    cout << "\nThank you for using the Medical Diagnosis Assistant. Stay healthy!\n";
+    
+    return 0;
+}
